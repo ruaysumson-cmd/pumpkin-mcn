@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pumpkin MCN — ระบบบันทึกยอดขาย</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f5f6fa;--bg2:#ffffff;--bg3:#f0f1f5;--bg4:#e8eaf0;
+  --line:#e2e4ec;--line2:#d0d3df;
+  --accent:#2563eb;--accent2:#059669;--accent3:#dc4c2a;
+  --text:#1a1d2e;--text2:#5a5f7a;--text3:#9096b0;
+  --font:'IBM Plex Sans Thai',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:10px;--r2:14px;
+  --shadow:0 1px 4px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.04);
+  --shadow2:0 2px 8px rgba(0,0,0,0.08),0 8px 24px rgba(0,0,0,0.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;box-shadow:var(--shadow)}
+.main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--line)}
+.logo-badge{display:inline-block;background:#eff6ff;color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-bottom:8px;border:1px solid #dbeafe}
+.logo-name{font-size:16px;font-weight:600;color:var(--text)}
+.logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.nav{padding:12px 10px;flex:1}
+.nav-section{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;font-family:var(--mono);padding:8px 8px 4px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
+.nav-item:hover{background:var(--bg3);color:var(--text)}
+.nav-item.active{background:#eff6ff;color:var(--accent);font-weight:500}
+.nav-icon{width:16px;height:16px;opacity:.6;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.sidebar-bottom{padding:14px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--text3);font-family:var(--mono)}
+.sync-status{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.sync-dot.online{background:var(--accent2);animation:pulse 2s infinite}
+.sync-dot.syncing{background:#f59e0b;animation:pulse .6s infinite}
+.sync-dot.offline{background:var(--accent3)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+.topbar{height:58px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:10px;position:sticky;top:0;z-index:50}
+.topbar-title{font-size:14px;font-weight:600;flex:1;color:var(--text)}
+.topbar-time{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--bg3);padding:5px 11px;border-radius:8px;border:1px solid var(--line)}
+.hamburger{display:none;background:none;border:none;color:var(--text2);cursor:pointer;padding:4px}
+.content{padding:24px;flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);font-size:13px;font-family:var(--font);cursor:pointer;transition:all .15s;border:none;font-weight:500}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--line2)}
+.btn-ghost:hover:not(:disabled){background:var(--bg4);color:var(--text)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover:not(:disabled){background:#1d4ed8}
+.btn-success{background:#ecfdf5;color:var(--accent2);border:1px solid #a7f3d0}
+.btn-success:hover:not(:disabled){background:#d1fae5}
+.btn-danger{background:#fef2f0;color:var(--accent3);border:1px solid #fecdc7}
+.btn-danger:hover:not(:disabled){background:#fee2de}
+.page{display:none}.page.active{display:block}
+
+/* LOADING OVERLAY */
+.loading-overlay{position:fixed;inset:0;background:rgba(245,246,250,0.85);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;backdrop-filter:blur(3px)}
+.loading-overlay.hidden{display:none}
+.spinner{width:36px;height:36px;border:3px solid var(--line2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:var(--text2)}
+
+/* SYNC BANNER */
+.sync-banner{display:none;align-items:center;gap:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:var(--r);padding:8px 14px;margin-bottom:16px;font-size:12px;color:#92400e}
+.sync-banner.show{display:flex}
+
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px}
+.metric-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.metric-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--accent));border-radius:var(--r2) var(--r2) 0 0}
+.metric-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:var(--mono)}
+.metric-value{font-size:26px;font-weight:600;color:var(--text);font-family:var(--mono);line-height:1}
+.metric-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.metric-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 7px;border-radius:20px;margin-top:7px;font-weight:500}
+.badge-up{background:#ecfdf5;color:#059669}.badge-dn{background:#fef2f0;color:#dc4c2a}.badge-nu{background:var(--bg3);color:var(--text3)}
+.period-tabs{display:flex;gap:0;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:20px;box-shadow:var(--shadow)}
+.ptab{padding:6px 18px;border-radius:7px;font-size:12px;cursor:pointer;color:var(--text3);border:none;background:none;font-family:var(--font);transition:all .15s;font-weight:500}
+.ptab.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(37,99,235,0.3)}
+.chart-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
+.chart-wrap{position:relative;height:220px}
+.section-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:12px}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:24px}
+.shop-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;transition:all .15s;box-shadow:var(--shadow)}
+.shop-card:hover{border-color:var(--accent);box-shadow:var(--shadow2);transform:translateY(-1px)}
+.shop-card-name{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
+.shop-card-val{font-size:19px;font-weight:600;font-family:var(--mono);color:var(--text)}
+.form-section{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:22px;margin-bottom:16px;max-width:700px;box-shadow:var(--shadow)}
+.form-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:16px}
+.form-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:flex-end}
+.form-group{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
+.form-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-family:var(--mono);font-weight:500}
+.form-control{padding:9px 12px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:all .15s}
+.form-control:focus{border-color:var(--accent);background:var(--bg2);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
+select.form-control option{background:#fff}
+.batch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:8px;margin-bottom:16px}
+.batch-item{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;transition:border-color .15s}
+.batch-item:focus-within{border-color:var(--accent)}
+.batch-name{font-size:12px;color:var(--text2);width:85px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.batch-input{flex:1;padding:5px 8px;background:var(--bg2);border:1px solid var(--line2);border-radius:6px;color:var(--text);font-size:13px;font-family:var(--mono);outline:none;min-width:0;transition:all .15s}
+.batch-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,0.08)}
+.rank-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+.rank-item{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:11px 16px;box-shadow:var(--shadow)}
+.rank-num{font-family:var(--mono);font-size:11px;color:var(--text3);width:24px;flex-shrink:0;text-align:center;font-weight:600}
+.rank-num.gold{color:#d97706}.rank-num.silver{color:#6b7280}.rank-num.bronze{color:#92400e}
+.rank-name{flex:1;font-size:13px;color:var(--text);font-weight:500}
+.rank-bar-wrap{width:130px;flex-shrink:0}
+.rank-bar-bg{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.rank-bar-fill{height:5px;border-radius:3px}
+.rank-val{font-family:var(--mono);font-size:12px;color:var(--text2);width:95px;text-align:right;flex-shrink:0}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:11px 16px;border-bottom:2px solid var(--line);color:var(--text3);font-weight:600;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;background:var(--bg3)}
+td{padding:11px 16px;border-bottom:1px solid var(--line);color:var(--text);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f8f9fe}
+.num{text-align:right;font-family:var(--mono)}
+.shopname-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-bottom:16px}
+.shopname-row{display:flex;align-items:center;gap:8px}
+.shopname-idx{font-family:var(--mono);font-size:11px;color:var(--text3);width:28px;text-align:right;flex-shrink:0;font-weight:600}
+.shopname-input{flex:1;padding:8px 10px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:all .15s}
+.shopname-input:focus{border-color:var(--accent);background:var(--bg2);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
+.export-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.export-card{background:var(--bg3);border:1.5px solid var(--line);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .15s;text-align:left}
+.export-card:hover{border-color:var(--accent);background:#eff6ff;box-shadow:var(--shadow)}
+.export-card-icon{font-size:22px;margin-bottom:6px}
+.export-card-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px}
+.export-card-desc{font-size:11px;color:var(--text3)}
+.export-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.export-filters .form-group{min-width:130px}
+.modal-overlay{position:fixed;inset:0;background:rgba(15,20,40,0.45);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(2px)}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:26px;width:480px;max-width:92vw;transform:translateY(10px);transition:transform .2s;box-shadow:var(--shadow2)}
+.modal-overlay.open .modal{transform:translateY(0)}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--text)}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--line);color:var(--text);padding:11px 18px;border-radius:var(--r);font-size:13px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:999;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow2)}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{border-left:3px solid var(--accent2)}
+.toast.error{border-left:3px solid var(--accent3)}
+.toast.info{border-left:3px solid var(--accent)}
+.empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px}
+
+/* LOGIN */
+.login-overlay{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center}
+.login-overlay.hidden{display:none}
+.login-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:36px 32px;width:380px;max-width:90vw;box-shadow:var(--shadow2)}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo-badge{display:inline-block;background:#eff6ff;color:var(--accent);font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #dbeafe}
+.login-logo-name{font-size:20px;font-weight:600;color:var(--text)}
+.login-logo-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.login-error{background:#fef2f0;border:1px solid #fecdc7;border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--accent3);margin-bottom:12px;display:none}
+.login-error.show{display:block}
+.login-footer{text-align:center;margin-top:16px;font-size:11px;color:var(--text3)}
+.user-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--text2)}
+.user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg3)}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.hamburger{display:block}.shop-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.metric-grid{grid-template-columns:1fr 1fr}.content{padding:16px}.export-opts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">กำลังโหลดข้อมูลจาก Google Sheets...</div>
+</div>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-badge">Pumpkin MCN</div>
+      <div class="login-logo-name">Sales Tracker</div>
+      <div class="login-logo-sub">กรุณาเข้าสู่ระบบก่อนใช้งาน</div>
+    </div>
+    <div class="login-error" id="loginError">❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้องค่ะ</div>
+    <div class="form-group" style="margin-bottom:12px">
+      <span class="form-label">ชื่อผู้ใช้</span>
+      <input type="text" class="form-control" id="loginUser" placeholder="username" autocomplete="username">
+    </div>
+    <div class="form-group" style="margin-bottom:20px">
+      <span class="form-label">รหัสผ่าน</span>
+      <div style="position:relative">
+        <input type="password" class="form-control" id="loginPass" placeholder="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:42px">
+        <button onclick="togglePass()" type="button" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;display:flex;align-items:center" title="แสดง/ซ่อนรหัสผ่าน">
+          <svg id="eyeIcon" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/>
+            <circle cx="10" cy="10" r="2.5"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()" style="width:100%;justify-content:center;padding:10px">เข้าสู่ระบบ</button>
+    <div class="login-footer">Pumpkin MCN © 2026</div>
+  </div>
+</div>
+
+<div class="app">
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-badge">Pumpkin MCN</div>
+    <div class="logo-name">Sales Tracker</div>
+    <div class="logo-sub">เชื่อมต่อ Google Sheets</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">เมนูหลัก</div>
+    <button class="nav-item active" onclick="gotoPage('summary',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="9" width="4" height="6" rx="1"/><rect x="6" y="5" width="4" height="10" rx="1"/><rect x="11" y="1" width="4" height="14" rx="1"/></svg>ภาพรวม
+    </button>
+    <button class="nav-item" onclick="gotoPage('entry',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M5 8h6"/></svg>บันทึกยอดขาย
+    </button>
+    <button class="nav-item" onclick="gotoPage('compare',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 12L5 7L8 10L11 4L14 8"/></svg>เปรียบเทียบ
+    </button>
+    <button class="nav-item" onclick="gotoPage('history',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v3l2 2"/></svg>ประวัติการขาย
+    </button>
+    <div class="nav-section">ระบบ</div>
+    <button class="nav-item" onclick="gotoPage('settings',this)">
+      <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M3.2 12.8l1.4-1.4M11.4 4.6l1.4-1.4"/></svg>ตั้งค่าช่อง
+    </button>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="sync-status">
+      <span class="sync-dot online" id="syncDot"></span>
+      <span id="syncLabel">เชื่อมต่อแล้ว</span>
+    </div>
+    <div id="lastSync" style="font-size:10px;color:var(--text3);margin-top:2px">—</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <button class="hamburger" onclick="toggleSidebar()">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h14M2 9h14M2 14h14"/></svg>
+    </button>
+    <div class="topbar-title" id="pageTitle">ภาพรวมยอดขาย</div>
+    <div class="user-chip" id="userChip">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <span id="userDisplayName">—</span>
+    </div>
+    <button class="btn btn-ghost" onclick="confirmLogout()" style="font-size:12px;color:var(--accent3);border-color:#fecdc7;background:#fef2f0" title="ออกจากระบบ">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3M10 10l3-3-3-3M13 7H5"/></svg>
+      ออกจากระบบ
+    </button>
+    <div class="topbar-time" id="topTime">--:--:--</div>
+    <button class="btn btn-ghost" onclick="syncNow()" id="syncBtn">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M1 7a6 6 0 0 1 10.5-4M13 7a6 6 0 0 1-10.5 4"/><path d="M11 3l.5 2.5L14 5M0 9l2.5.5.5-2.5"/></svg>รีเฟรช
+    </button>
+    <button class="btn btn-ghost" onclick="openSheetsModal()" style="background:#ecfdf5;color:#059669;border-color:#a7f3d0">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="1" width="12" height="12" rx="2"/><path d="M1 5h12M5 5v8"/></svg>Google Sheets
+    </button>
+    <button class="btn btn-success" onclick="openExportModal()">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 1v8M4 6l3 3 3-3M2 11h10"/></svg>ส่งออก Excel
+    </button>
+  </div>
+
+  <div class="content">
+
+    <!-- SYNC BANNER -->
+    <div class="sync-banner" id="syncBanner">
+      ⏳ กำลังซิงก์ข้อมูล... กรุณารอสักครู่
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="page active" id="page-summary">
+      <div class="metric-grid" id="metricRow"></div>
+      <div class="period-tabs">
+        <button class="ptab active" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
+        <button class="ptab" onclick="setPeriod(this,'day')">รายวัน</button>
+        <button class="ptab" onclick="setPeriod(this,'week')">รายสัปดาห์</button>
+        <button class="ptab" onclick="setPeriod(this,'month')">รายเดือน</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
+        <input type="date" class="form-control" id="summaryDate" style="width:auto" onchange="renderSummary()">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryDate()">วันนี้</button>
+        <span id="summaryDateLabel" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
+      </div>
+      <div class="chart-card">
+        <div class="card-header"><span class="card-title">ยอดขายรวมทุกช่อง</span></div>
+        <div class="chart-wrap"><canvas id="summaryChart"></canvas></div>
+      </div>
+      <div class="section-label">ยอดขายแยกช่อง</div>
+      <div class="shop-grid" id="shopGrid"></div>
+    </div>
+
+    <!-- ENTRY -->
+    <div class="page" id="page-entry">
+      <div class="form-section">
+        <div class="form-title">บันทึกยอดขายรายช่อง</div>
+        <div class="form-row">
+          <div class="form-group"><span class="form-label">ช่อง</span><select class="form-control" id="selShop"></select></div>
+          <div class="form-group" style="max-width:150px"><span class="form-label">วันที่</span><input type="date" class="form-control" id="inDate"></div>
+          <div class="form-group" style="max-width:110px"><span class="form-label">เวลาเริ่ม</span><select class="form-control" id="inHourStart"></select></div>
+          <div class="form-group" style="max-width:110px"><span class="form-label">เวลาสิ้นสุด</span><select class="form-control" id="inHourEnd"></select></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><span class="form-label">ยอดขาย (บาท)</span><input type="number" class="form-control" id="inAmount" placeholder="0.00" min="0" step="0.01"></div>
+          <div class="form-group" style="max-width:130px"><span class="form-label">&nbsp;</span><button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">💾 บันทึก</button></div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <button class="btn btn-ghost" onclick="toggleBatch()">⊞ บันทึกพร้อมกัน 35 ช่อง</button>
+      </div>
+      <div class="form-section" id="batchArea" style="display:none;max-width:100%">
+        <div class="form-title">บันทึกยอดขายพร้อมกันทุกช่อง</div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:160px"><span class="form-label">วันที่</span><input type="date" class="form-control" id="bDate"></div>
+          <div class="form-group" style="max-width:110px"><span class="form-label">เวลาเริ่ม</span><select class="form-control" id="bHourStart"></select></div>
+          <div class="form-group" style="max-width:110px"><span class="form-label">เวลาสิ้นสุด</span><select class="form-control" id="bHourEnd"></select></div>
+          <div class="form-group" style="max-width:120px"><span class="form-label">&nbsp;</span><button class="btn btn-ghost" onclick="clearBatch()">ล้างช่อง</button></div>
+        </div>
+        <div class="batch-grid" id="batchInputs"></div>
+        <button class="btn btn-primary" id="batchSaveBtn" onclick="saveBatch()">💾 บันทึกทั้ง 35 ช่อง</button>
+      </div>
+    </div>
+
+    <!-- COMPARE -->
+    <div class="page" id="page-compare">
+      <div class="period-tabs">
+        <button class="ptab active" onclick="setCmpPeriod(this,'hour')">รายชั่วโมง</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'day')">รายวัน</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'month')">รายเดือน</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
+        <input type="date" class="form-control" id="cmpDate" style="width:auto" onchange="buildCmpFilter();renderCompare()">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpDate()">วันนี้</button>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">|</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
+        <select class="form-control" id="cmpFilter" onchange="renderCompare()" style="width:auto"></select>
+      </div>
+      <div class="chart-card">
+        <div class="card-header"><span class="card-title">Top 10 ช่อง</span></div>
+        <div class="chart-wrap" style="height:290px"><canvas id="compareChart"></canvas></div>
+      </div>
+      <div class="section-label">จัดอันดับทั้งหมด 35 ช่อง</div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="page" id="page-history">
+      <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="max-width:210px"><span class="form-label">ช่อง</span>
+          <select class="form-control" id="histShop" onchange="renderHistory()"><option value="all">ทุกร้าน</option></select>
+        </div>
+        <div class="form-group" style="max-width:165px"><span class="form-label">วันที่</span><input type="date" class="form-control" id="histDate" onchange="renderHistory()"></div>
+        <button class="btn btn-ghost" onclick="clearFilter()">ล้างตัวกรอง</button>
+      </div>
+      <div class="chart-card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>ช่อง</th><th>วันที่</th><th>ช่วงเวลา</th><th class="num">ยอดขาย (฿)</th><th></th></tr></thead>
+            <tbody id="histBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="form-section" style="max-width:100%">
+        <div class="card-header" style="margin-bottom:8px">
+          <div>
+            <div class="form-title" style="margin:0">ตั้งชื่อช่อง 35 ช่อง</div>
+            <p style="font-size:12px;color:var(--text3);margin-top:4px">แก้ไขชื่อให้ตรงกับช่องจริง — บันทึกแล้วซิงก์ไป Google Sheets ทันที</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="resetShopNames()">รีเซ็ตชื่อ</button>
+            <button class="btn btn-primary" onclick="saveShopNames()">💾 บันทึกชื่อทั้งหมด</button>
+          </div>
+        </div>
+        <div class="shopname-grid" id="shopNameInputs"></div>
+      </div>
+      <div class="form-section" id="userMgmtSection" style="max-width:100%;display:none">
+        <div class="card-header" style="margin-bottom:8px">
+          <div>
+            <div class="form-title" style="margin:0">จัดการผู้ใช้งาน</div>
+            <p style="font-size:12px;color:var(--text3);margin-top:4px">เพิ่ม/ลบ/แก้ไข username และ password</p>
+          </div>
+          <button class="btn btn-primary" onclick="addUserRow()">+ เพิ่มผู้ใช้</button>
+        </div>
+        <div id="userList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
+          💡 role: <code>admin</code> = เห็นจัดการผู้ใช้ / <code>user</code> = ใช้งานทั่วไป
+        </div>
+        <button class="btn btn-primary" onclick="saveUsers()">💾 บันทึกผู้ใช้ทั้งหมด</button>
+      </div>
+
+      <div class="form-section" style="max-width:520px">
+        <div class="form-title">ข้อมูลระบบ</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:10px 0;border-bottom:1px solid var(--line)"><span>จำนวนรายการทั้งหมด</span><span style="font-family:var(--mono);font-weight:600" id="totalRecords">0</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:10px 0;border-bottom:1px solid var(--line)"><span>แหล่งข้อมูล</span><span style="font-family:var(--mono);color:var(--accent2)">Google Sheets ☁️</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2);padding:10px 0"><span>ซิงก์ล่าสุด</span><span style="font-family:var(--mono);font-weight:600" id="lastSyncSettings">—</span></div>
+        </div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+          <div class="form-group" style="margin-bottom:12px">
+            <span class="form-label">🔗 ลิงก์ Google Sheets</span>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <input type="text" class="form-control" id="sheetsUrlInput" placeholder="https://docs.google.com/spreadsheets/d/..." style="flex:1;font-size:12px">
+              <button class="btn btn-primary" onclick="saveSheetsUrl()">บันทึก</button>
+            </div>
+            <div style="font-size:11px;color:var(--text3);margin-top:4px">วางลิงก์ Google Sheets เพื่อเปิดดูชีตได้โดยตรงค่ะ</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="syncNow()">🔄 ซิงก์ข้อมูลใหม่</button>
+            <button class="btn btn-danger" onclick="confirmClear()">ล้างข้อมูลทั้งหมด</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SHOP DETAIL MODAL -->
+<div class="modal-overlay" id="shopDetailModal">
+  <div class="modal" style="width:520px;max-height:85vh;overflow-y:auto">
+    <div class="modal-title" id="shopDetailTitle">รายละเอียดช่อง</div>
+    <div id="shopDetailContent"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('shopDetailModal')">ปิด</button></div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">ยืนยันการล้างข้อมูล</div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.75">ข้อมูลยอดขายทั้งหมดใน Google Sheets จะถูกลบถาวร ต้องการดำเนินการต่อหรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modalOverlay')">ยกเลิก</button>
+      <button class="btn btn-danger" onclick="clearAllData()">ล้างข้อมูล</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHEETS MODAL -->
+<div class="modal-overlay" id="sheetsModal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title" style="display:flex;align-items:center;gap:8px">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" fill="#0f9d58"/><path d="M2 7h16M7 7v11" stroke="#fff" stroke-width="1.5"/></svg>
+      เปิด Google Sheets
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:16px">เลือกชีตที่ต้องการดูได้เลยค่ะ</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <button class="export-card" onclick="openSheet('')" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <span style="font-size:20px">📋</span>
+        <div style="text-align:left">
+          <div class="export-card-title">ข้อมูลดิบทั้งหมด (SalesData)</div>
+          <div class="export-card-desc">รายการยอดขายทุกรายการที่บันทึกไว้</div>
+        </div>
+      </button>
+      <button class="export-card" onclick="openSheet('สรุปรายชั่วโมง')" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <span style="font-size:20px">🕐</span>
+        <div style="text-align:left">
+          <div class="export-card-title">สรุปรายชั่วโมง</div>
+          <div class="export-card-desc">ยอดขาย + เฉลี่ย 24 ชั่วโมง แยกตามช่อง</div>
+        </div>
+      </button>
+      <button class="export-card" onclick="openSheet('สรุปรายวัน')" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <span style="font-size:20px">📅</span>
+        <div style="text-align:left">
+          <div class="export-card-title">สรุปรายวัน</div>
+          <div class="export-card-desc">ยอดขายรวม + เฉลี่ย 7 วัน แยกตามช่อง</div>
+        </div>
+      </button>
+      <button class="export-card" onclick="openSheet('สรุปรายสัปดาห์')" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <span style="font-size:20px">📆</span>
+        <div style="text-align:left">
+          <div class="export-card-title">สรุปรายสัปดาห์</div>
+          <div class="export-card-desc">ยอดขายรวม + เฉลี่ย 30 วัน แยกตามช่อง</div>
+        </div>
+      </button>
+      <button class="export-card" onclick="openSheet('สรุปรายเดือน')" style="display:flex;align-items:center;gap:12px;padding:12px 16px">
+        <span style="font-size:20px">🗓</span>
+        <div style="text-align:left">
+          <div class="export-card-title">สรุปรายเดือน</div>
+          <div class="export-card-desc">ยอดขายรวม + เฉลี่ย 6 เดือน แยกตามช่อง</div>
+        </div>
+      </button>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+      🔗 ยังไม่ได้ตั้งค่าลิงก์ Sheets — ไปที่ <strong>ตั้งค่าช่อง → ลิงก์ Google Sheets</strong> เพื่อใส่ลิงก์ค่ะ
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('sheetsModal')">ปิด</button></div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">ส่งออกข้อมูล Excel</div>
+    <div class="export-filters">
+      <div class="form-group"><span class="form-label">ช่อง</span><select class="form-control" id="expShop"><option value="all">ทุกร้าน</option></select></div>
+      <div class="form-group"><span class="form-label">วันที่เริ่มต้น</span><input type="date" class="form-control" id="expDateFrom"></div>
+      <div class="form-group"><span class="form-label">วันที่สิ้นสุด</span><input type="date" class="form-control" id="expDateTo"></div>
+    </div>
+    <div class="export-opts">
+      <button class="export-card" onclick="doExport('raw')"><div class="export-card-icon">📋</div><div class="export-card-title">รายละเอียด</div><div class="export-card-desc">ทุกรายการ แยกร้าน วันที่ ชั่วโมง</div></button>
+      <button class="export-card" onclick="doExport('hourly')"><div class="export-card-icon">🕐</div><div class="export-card-title">สรุปรายชั่วโมง</div><div class="export-card-desc">ยอดรวมแต่ละชั่วโมง แยกวันที่</div></button>
+      <button class="export-card" onclick="doExport('daily')"><div class="export-card-icon">📅</div><div class="export-card-title">สรุปรายวัน</div><div class="export-card-desc">ยอดรวมแต่ละวัน แยกช่อง</div></button>
+      <button class="export-card" onclick="doExport('monthly')"><div class="export-card-icon">📊</div><div class="export-card-title">สรุปรายเดือน</div><div class="export-card-desc">ยอดรวมแต่ละเดือน แยกช่อง</div></button>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('exportModal')">ปิด</button></div>
+  </div>
+</div>
+
+<script>
+// ==================== CONFIG ====================
+const API_URL = "https://script.google.com/macros/s/AKfycbzEGgCS7_zB-u0FzPBHbnxtxXZl9eD4FNxAltEIX2U5HedeABhQsXJL_b8NGzxFJ38G/exec";
+// ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
+const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
+const SHOP_COUNT = 35;
+const AUTO_REFRESH_MS = 30000; // รีเฟรชทุก 30 วินาที
+
+// ==================== STATE ====================
+let shopNames = [
+  "CHIN CUTMA",
+  "Lily's choice",
+  "ตั้ม วราวุธ",
+  "ใบเตยตัวแม่",
+  "เชอรีน ณัฐจารี",
+  "Bunnyaire",
+  "dj_push",
+  "Warattaya",
+  "Gavind",
+  "lukeบอกต่อ",
+  "ขวัญ อุษามณี",
+  "ลาล่า ขวัญนภา",
+  "Taostp",
+  "Seya Thongchua",
+  "Toy_Tested",
+  "วิกกี้ป้ายา",
+  "Namtanlita",
+  "Pancake",
+  "anyarinsweet",
+  "บอย พิษณุ",
+  "จอย ริลนี",
+  "noon_ramida",
+  "ballkummun",
+  "มิลล่า มาริษา",
+  "Icelands",
+  "Boy_pakorn27",
+  "เป้ วงมายล์",
+  "หน่อง ธนา",
+  "ช่อง 29",
+  "ช่อง 30",
+  "ช่อง 31",
+  "ช่อง 32",
+  "ช่อง 33",
+  "ช่อง 34",
+  "ช่อง 35"
+];
+let records = [];
+let periodTab = 'hour', cmpTab = 'hour';
+let summaryChart = null, compareChart = null;
+let isSyncing = false;
+let isEditingNames = false;
+
+function fmtTimeRange(s,e){return `${String(s).padStart(2,'0')}:00-${String(e).padStart(2,'0')}:00`;}
+
+
+// ==================== UTILS ====================
+function fmt(n){return Math.round(n).toLocaleString('th-TH')}
+function fmtFull(n){return Math.round(n).toLocaleString('th-TH')}
+function fmtBig(n){
+  n = Math.round(n);
+  if(n >= 1000000) return (n/1000000).toFixed(2) + ' ล้าน';
+  if(n >= 100000)  return (n/1000).toFixed(1) + ' พัน';
+  return n.toLocaleString('th-TH');
+}
+function today(){return new Date().toISOString().slice(0,10)}
+function nowHour(){return new Date().getHours()}
+
+function toast(msg, type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast show ${type}`;
+  clearTimeout(t._t); t._t=setTimeout(()=>t.className='toast',2800);
+}
+
+function updateClock(){
+  document.getElementById('topTime').textContent=new Date().toLocaleTimeString('th-TH',{hour12:false});
+}
+setInterval(updateClock,1000); updateClock();
+
+function setSyncStatus(status){
+  const dot=document.getElementById('syncDot');
+  const label=document.getElementById('syncLabel');
+  dot.className='sync-dot '+status;
+  if(status==='online'){label.textContent='เชื่อมต่อแล้ว';}
+  else if(status==='syncing'){label.textContent='กำลังซิงก์...';}
+  else{label.textContent='ออฟไลน์';}
+}
+
+function setLastSync(){
+  const now=new Date().toLocaleTimeString('th-TH',{hour12:false});
+  document.getElementById('lastSync').textContent='ซิงก์ล่าสุด '+now;
+  const el=document.getElementById('lastSyncSettings');
+  if(el)el.textContent=now;
+}
+
+// ==================== API ====================
+async function apiCall(action, body={}){
+  const payload={action,...body};
+  try {
+    const res = await fetch(API_URL, {
+      method:'POST',
+      body: JSON.stringify(payload),
+      headers:{'Content-Type':'text/plain'}
+    });
+    const data = await res.json();
+    return data;
+  } catch(e) {
+    console.error('API Error:', e);
+    throw e;
+  }
+}
+
+async function loadAll(){
+  setSyncStatus('syncing');
+  document.getElementById('syncBanner').classList.add('show');
+  try {
+    const [recRes, nameRes] = await Promise.all([
+      apiCall('getAll'),
+      apiCall('getShopNames')
+    ]);
+    if(recRes.records) records = recRes.records.map(r=>({
+      shop: parseInt(r.shop),
+      date: String(r.date).slice(0,10),
+      hourStart: r.hourStart!==undefined ? parseInt(r.hourStart) : parseInt(r.hour)||0,
+      hourEnd: r.hourEnd!==undefined ? parseInt(r.hourEnd) : (parseInt(r.hour)||0)+1,
+      timeRange: r.timeRange || fmtTimeRange(parseInt(r.hourStart||r.hour)||0,(parseInt(r.hourEnd||r.hour)||0)+1),
+      amount: parseFloat(r.amount)||0,
+      liveTime: r.liveTime||'',
+      staff: r.staff||''
+    }));
+    if(nameRes.names && nameRes.names.length===SHOP_COUNT){
+      shopNames = nameRes.names;
+      rebuildSelects();
+      buildBatchInputs();
+    }
+    setSyncStatus('online');
+    setLastSync();
+    renderCurrentPage();
+    toast('✓ โหลดข้อมูลสำเร็จ','success');
+  } catch(e) {
+    setSyncStatus('offline');
+    toast('❌ เชื่อมต่อ Google Sheets ไม่ได้','error');
+  } finally {
+    document.getElementById('syncBanner').classList.remove('show');
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    isSyncing=false;
+  }
+}
+
+async function syncNow(){
+  if(isSyncing)return;
+  isSyncing=true;
+  document.getElementById('syncBtn').disabled=true;
+  await loadAll();
+  document.getElementById('syncBtn').disabled=false;
+}
+
+// ==================== NAV ====================
+function gotoPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  const titles={summary:'ภาพรวมยอดขาย',entry:'บันทึกยอดขาย',compare:'เปรียบเทียบช่อง',history:'ประวัติการขาย',settings:'ตั้งค่าช่อง'};
+  document.getElementById('pageTitle').textContent=titles[id];
+  if(id==='summary')renderSummary();
+  if(id==='compare'){buildCmpFilter();renderCompare();}
+  if(id==='history')renderHistory();
+  if(id==='settings')renderSettings();
+  if(window.innerWidth<=768)document.getElementById('sidebar').classList.remove('open');
+}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open')}
+document.addEventListener('click',e=>{
+  const sb=document.getElementById('sidebar');
+  if(window.innerWidth<=768&&sb.classList.contains('open')&&!sb.contains(e.target)&&!e.target.closest('.hamburger'))sb.classList.remove('open');
+});
+
+function renderCurrentPage(){
+  const active=document.querySelector('.page.active');
+  if(!active)return;
+  const id=active.id.replace('page-','');
+  if(id==='summary')renderSummary();
+  if(id==='compare')renderCompare();
+  if(id==='history')renderHistory();
+  if(id==='settings')renderSettings();
+}
+
+// ==================== INIT ====================
+function init(){
+  ['selShop','histShop','expShop'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const hasAll=sel.options[0]?.value==='all';
+    const start=hasAll?1:0;
+    shopNames.forEach((s,i)=>{
+      if(sel.options[start+i])sel.options[start+i].textContent=s;
+      else{const o=document.createElement('option');o.value=i;o.textContent=s;sel.appendChild(o);}
+    });
+  });
+  // Build hour options helper
+  function buildHourOptions(el, selectedVal){
+    if(!el)return;
+    el.innerHTML='';
+    for(let i=0;i<24;i++){
+      const o=document.createElement('option');
+      o.value=i;
+      o.textContent=`${String(i).padStart(2,'0')}:00`;
+      if(i===selectedVal)o.selected=true;
+      el.appendChild(o);
+    }
+  }
+  buildHourOptions(document.getElementById('inHourStart'), nowHour());
+  buildHourOptions(document.getElementById('inHourEnd'), Math.min(nowHour()+1,23));
+  buildHourOptions(document.getElementById('bHourStart'), nowHour());
+  buildHourOptions(document.getElementById('bHourEnd'), Math.min(nowHour()+1,23));
+
+  // Auto-set end = start+1 when start changes
+  document.getElementById('inHourStart').addEventListener('change', function(){
+    const s=parseInt(this.value);
+    const eEl=document.getElementById('inHourEnd');
+    if(parseInt(eEl.value)<=s) eEl.value=Math.min(s+1,23);
+  });
+  document.getElementById('bHourStart').addEventListener('change', function(){
+    const s=parseInt(this.value);
+    const eEl=document.getElementById('bHourEnd');
+    if(parseInt(eEl.value)<=s) eEl.value=Math.min(s+1,23);
+  });
+  document.getElementById('inDate').value=today();
+  const summaryDateEl=document.getElementById('summaryDate');
+  if(summaryDateEl)summaryDateEl.value=today();
+  document.getElementById('bDate').value=today();
+  document.getElementById('histDate').value=today();
+  document.getElementById('expDateFrom').value=today();
+  document.getElementById('expDateTo').value=today();
+  const cmpDateEl=document.getElementById('cmpDate');
+  if(cmpDateEl)cmpDateEl.value=today();
+  buildBatchInputs();
+  loadAll();
+  // Auto refresh
+  setInterval(()=>{if(!isSyncing && !isEditingNames)loadAll();}, AUTO_REFRESH_MS);
+}
+
+function rebuildSelects(){
+  ['selShop','histShop','expShop'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;
+    const hasAll=sel.options[0]?.value==='all';
+    const start=hasAll?1:0;
+    shopNames.forEach((s,i)=>{if(sel.options[start+i])sel.options[start+i].textContent=s;});
+  });
+}
+
+// ==================== SUMMARY ====================
+function getWeekStart(dateStr){
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  const ws = new Date(d.setDate(diff));
+  return ws.toISOString().slice(0,10);
+}
+
+function getLabels(period){
+  if(period==='hour') return Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+  if(period==='day'){
+    const sel = getSelectedDate();
+    const anchor = sel ? new Date(sel) : new Date();
+    const days=[];
+    for(let i=6;i>=0;i--){
+      const dd=new Date(anchor);
+      dd.setDate(anchor.getDate()-i);
+      days.push(dd.toISOString().slice(0,10));
+    }
+    return days;
+  }
+  if(period==='week'){
+    const weeks=[];
+    const d=new Date();
+    for(let i=7;i>=0;i--){
+      const dd=new Date(d);
+      dd.setDate(d.getDate()-(i*7));
+      weeks.push(getWeekStart(dd.toISOString().slice(0,10)));
+    }
+    return [...new Set(weeks)];
+  }
+  const months=[];
+  const d=new Date();
+  for(let i=5;i>=0;i--){
+    const mm=new Date(d.getFullYear(),d.getMonth()-i,1);
+    months.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);
+  }
+  return months;
+}
+
+function getSelectedDate(){
+  const el = document.getElementById('summaryDate');
+  return (el && el.value) ? el.value : today();
+}
+
+function resetSummaryDate(){
+  const el = document.getElementById('summaryDate');
+  if(el) el.value = today();
+  renderSummary();
+}
+
+function sumFor(shopIdx, period, key, dateOverride){
+  const baseDate = dateOverride || getSelectedDate();
+  return records.filter(r=>{
+    if(shopIdx!==null && r.shop!==shopIdx) return false;
+    const rDate = String(r.date).slice(0,10);
+    if(period==='hour'){
+      return rDate===baseDate && parseInt(r.hourStart)===parseInt(key);
+    }
+    if(period==='day') return rDate===key;
+    if(period==='week'){
+      const ws = getWeekStart(rDate);
+      return ws===key;
+    }
+    if(period==='month') return rDate.slice(0,7)===key;
+    return false;
+  }).reduce((a,b)=>a+b.amount,0);
+}
+
+function setPeriod(btn,p){btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');periodTab=p;renderSummary();}
+
+function renderSummary(){
+  const labels=getLabels(periodTab);
+  const totals=labels.map(l=>shopNames.reduce((_,__,i)=>_+sumFor(i,periodTab,periodTab==='hour'?parseInt(l):l),0));
+  const grand=totals.reduce((a,b)=>a+b,0);
+  const bestI=totals.indexOf(Math.max(...totals));
+  const selDate2 = getSelectedDate();
+  document.getElementById('metricRow').innerHTML=`
+    <div class="metric-card" style="--ac:var(--accent)"><div class="metric-label">ยอดรวม${periodTab==='hour'?selDate2:periodTab==='day'?'7 วัน':'6 เดือน'}</div><div class="metric-value">${fmt(grand)}</div><div class="metric-sub">บาท (THB)</div></div>
+    <div class="metric-card" style="--ac:var(--accent2)"><div class="metric-label">ช่องทั้งหมด</div><div class="metric-value">35</div><div class="metric-sub">ช่อง</div></div>
+    <div class="metric-card" style="--ac:#7c3aed"><div class="metric-label">ช่วงสูงสุด</div><div class="metric-value" style="font-size:18px">${labels[bestI]||'-'}</div><div class="metric-sub">${fmt(totals[bestI]||0)} บาท</div></div>
+    <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='day'?'วัน':'เดือน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
+  const pLabels=periodTab==='hour'?labels:periodTab==='week'?labels.map(l=>'สัปดาห์ '+l.slice(5)):labels.map(l=>l.slice(5));
+  if(summaryChart)summaryChart.destroy();
+  summaryChart=new Chart(document.getElementById('summaryChart'),{
+    type:'bar',
+    data:{labels:pLabels,datasets:[{label:'ยอดขาย',data:totals,backgroundColor:'rgba(37,99,235,0.12)',borderColor:'#2563eb',borderWidth:1.5,borderRadius:5,hoverBackgroundColor:'rgba(37,99,235,0.22)'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      y:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},
+      x:{ticks:{color:'#9096b0',font:{size:10,family:'IBM Plex Mono'},maxRotation:45,autoSkip:labels.length>12},grid:{display:false},border:{color:'#e2e4ec'}}}}
+  });
+  // Update date label
+  const selDate = getSelectedDate();
+  const labelEl = document.getElementById('summaryDateLabel');
+  if(labelEl){
+    if(periodTab==='hour') labelEl.textContent = `ดูข้อมูลวันที่ ${selDate}`;
+    else if(periodTab==='day') labelEl.textContent = `7 วันก่อนหน้า ${selDate}`;
+    else if(periodTab==='week') labelEl.textContent = `8 สัปดาห์ล่าสุด`;
+    else labelEl.textContent = `6 เดือนล่าสุด`;
+  }
+
+  const grid=document.getElementById('shopGrid');grid.innerHTML='';
+  shopNames.forEach((s,i)=>{
+    let curKey, prevKey;
+    if(periodTab==='hour'){ curKey=String(nowHour()); prevKey=String(nowHour()-1); }
+    else if(periodTab==='day'){ curKey=selDate; const pl=getLabels('day'); prevKey=pl[pl.length-2]||''; }
+    else if(periodTab==='week'){ curKey=getWeekStart(selDate); const pl=getLabels('week'); prevKey=pl[pl.length-2]||''; }
+    else { curKey=selDate.slice(0,7); const pl=getLabels('month'); prevKey=pl[pl.length-2]||''; }
+    const cur=sumFor(i,periodTab,curKey);
+    const prev = sumFor(i,periodTab,prevKey);
+    const pct=prev>0?Math.round((cur-prev)/prev*100):null;
+    const badge=pct===null?`<span class="metric-badge badge-nu">ยังไม่มีเทียบ</span>`
+      :pct>=0?`<span class="metric-badge badge-up">▲ ${pct}%</span>`
+      :`<span class="metric-badge badge-dn">▼ ${Math.abs(pct)}%</span>`;
+    grid.innerHTML+=`<div class="shop-card" style="cursor:pointer" onclick="showShopDetail(${i})">
+      <div class="shop-card-name">${s}</div>
+      <div class="shop-card-val">${fmtBig(cur)}</div>
+      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px">${fmtFull(cur)} ฿</div>
+      ${badge}
+    </div>`;
+  });
+}
+
+// ==================== ENTRY ====================
+function showShopDetail(shopIdx){
+  const s = shopNames[shopIdx];
+  document.getElementById('shopDetailTitle').textContent = `📺 ${s}`;
+
+  const periods = [
+    {label:'รายชั่วโมง (วันนี้)', period:'hour', labels: getLabels('hour')},
+    {label:'รายวัน (7 วัน)', period:'day', labels: getLabels('day')},
+    {label:'รายสัปดาห์ (8 สัปดาห์)', period:'week', labels: getLabels('week')},
+    {label:'รายเดือน (6 เดือน)', period:'month', labels: getLabels('month')},
+  ];
+
+  let html = '';
+  periods.forEach(p => {
+    const vals = p.labels.map(l => ({
+      label: p.period==='hour' ? l : p.period==='week' ? 'สัปดาห์ '+l.slice(5) : l.slice(p.period==='day'?5:0),
+      amount: sumFor(shopIdx, p.period, p.period==='hour' ? parseInt(l) : l)
+    }));
+    const total = vals.reduce((a,b)=>a+b.amount,0);
+    const maxVal = Math.max(...vals.map(v=>v.amount))||1;
+
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);margin-bottom:8px;display:flex;justify-content:space-between">
+        <span>${p.label}</span>
+        <span style="color:var(--accent)">${fmtBig(total)}</span>
+      </div>
+      ${vals.map(v=>`
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="font-size:11px;color:var(--text3);width:80px;flex-shrink:0;font-family:var(--mono)">${v.label}</span>
+          <div style="flex:1;background:var(--bg3);border-radius:3px;overflow:hidden;height:6px">
+            <div style="width:${Math.round(v.amount/maxVal*100)}%;height:6px;background:var(--accent);border-radius:3px"></div>
+          </div>
+          <span style="font-size:12px;font-family:var(--mono);color:var(--text);width:90px;text-align:right;flex-shrink:0">${fmtFull(v.amount)}</span>
+        </div>`).join('')}
+    </div>`;
+  });
+
+  document.getElementById('shopDetailContent').innerHTML = html;
+  document.getElementById('shopDetailModal').classList.add('open');
+}
+
+function buildBatchInputs(){
+  const c=document.getElementById('batchInputs');c.innerHTML='';
+  shopNames.forEach((s,i)=>{c.innerHTML+=`<div class="batch-item"><span class="batch-name" title="${s}">${s}</span><input type="number" class="batch-input" id="bi_${i}" placeholder="0" min="0" step="0.01"></div>`;});
+}
+
+
+async function saveEntry(){
+  const shop=parseInt(document.getElementById('selShop').value);
+  const date=document.getElementById('inDate').value;
+  const hourStart=parseInt(document.getElementById('inHourStart').value);
+  const hourEnd=parseInt(document.getElementById('inHourEnd').value);
+  const amount=parseFloat(document.getElementById('inAmount').value)||0;
+  if(!date){toast('กรุณาเลือกวันที่','error');return;}
+  if(hourEnd<=hourStart){toast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น','error');return;}
+  const timeRange=fmtTimeRange(hourStart,hourEnd);
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  setSyncStatus('syncing');
+  try {
+    await apiCall('saveRecord',{shop,date,hourStart,hourEnd,timeRange,amount});
+    const idx=records.findIndex(r=>r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd);
+    if(idx>=0)records[idx].amount=amount; else records.push({shop,date,hourStart,hourEnd,timeRange,amount});
+    setSyncStatus('online'); setLastSync();
+    toast(`✓ บันทึก ${shopNames[shop]} ${timeRange} — ฿${fmt(amount)}`);
+    document.getElementById('inAmount').value='';
+    renderSummary();
+  } catch(e){
+    setSyncStatus('offline');
+    toast('❌ บันทึกไม่สำเร็จ กรุณาลองใหม่','error');
+  } finally {
+    btn.disabled=false; btn.textContent='💾 บันทึก';
+  }
+}
+
+function toggleBatch(){const a=document.getElementById('batchArea');a.style.display=a.style.display==='none'?'block':'none';}
+function clearBatch(){shopNames.forEach((_,i)=>{const el=document.getElementById('bi_'+i);if(el)el.value='';})}
+
+async function saveBatch(){
+  const date=document.getElementById('bDate').value;
+  const hour=parseInt(document.getElementById('bHour').value);
+  if(!date){toast('กรุณาเลือกวันที่','error');return;}
+  const toSave=[];
+  shopNames.forEach((_,i)=>{
+    const val=parseFloat(document.getElementById('bi_'+i)?.value);
+    if(!isNaN(val)&&val>=0)toSave.push({shop:i,date,hour,amount:val});
+  });
+  if(!toSave.length){toast('ยังไม่ได้กรอกยอดขาย','error');return;}
+  const btn=document.getElementById('batchSaveBtn');
+  btn.disabled=true; btn.textContent=`⏳ กำลังบันทึก ${toSave.length} ร้าน...`;
+  setSyncStatus('syncing');
+  try {
+    await Promise.all(toSave.map(r=>apiCall('saveRecord',r)));
+    toSave.forEach(r=>{
+      const idx=records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hour===r.hour);
+      if(idx>=0)records[idx].amount=r.amount; else records.push(r);
+    });
+    setSyncStatus('online'); setLastSync();
+    toast(`✓ บันทึก ${toSave.length} ร้านสำเร็จ ชั่วโมง ${String(hour).padStart(2,'0')}:00`);
+    clearBatch(); renderSummary();
+  } catch(e){
+    setSyncStatus('offline');
+    toast('❌ บันทึกบางรายการไม่สำเร็จ','error');
+  } finally {
+    btn.disabled=false; btn.textContent='💾 บันทึกทั้ง 35 ช่อง';
+  }
+}
+
+// ==================== COMPARE ====================
+const CHART_COLORS=['#2563eb','#059669','#dc4c2a','#d4537e','#7c3aed','#65a30d','#d97706','#dc2626','#0e7490','#6d28d9','#1d4ed8','#15803d','#b45309','#991b1b','#4338ca','#0369a1','#166534','#92400e','#7f1d1d','#3730a3','#0891b2','#ca8a04','#84cc16','#f87171','#a78bfa','#6ee7b7','#fca5a5','#f9a8d4','#cbd5e1','#93c5fd','#fcd34d','#bbf7d0','#fecaca','#c4b5fd','#34d399'];
+
+function setCmpPeriod(btn,p){btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');cmpTab=p;buildCmpFilter();renderCompare();}
+
+function getCmpDate(){
+  const el=document.getElementById('cmpDate');
+  return (el&&el.value)?el.value:today();
+}
+
+function resetCmpDate(){
+  const el=document.getElementById('cmpDate');
+  if(el)el.value=today();
+  buildCmpFilter();renderCompare();
+}
+
+function buildCmpFilter(){
+  const sel=document.getElementById('cmpFilter');
+  const prev=sel.value;
+  sel.innerHTML='';
+  const cmpDateVal=getCmpDate();
+  let labels=[];
+  if(cmpTab==='hour'){
+    labels=Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+  } else if(cmpTab==='day'){
+    const anchor=new Date(cmpDateVal);
+    for(let i=6;i>=0;i--){const dd=new Date(anchor);dd.setDate(anchor.getDate()-i);labels.push(dd.toISOString().slice(0,10));}
+  } else if(cmpTab==='week'){
+    const anchor=new Date(cmpDateVal);
+    const weeks=[];
+    for(let i=7;i>=0;i--){const dd=new Date(anchor);dd.setDate(anchor.getDate()-(i*7));weeks.push(getWeekStart(dd.toISOString().slice(0,10)));}
+    labels=[...new Set(weeks)];
+  } else {
+    const d=new Date();
+    for(let i=5;i>=0;i--){const mm=new Date(d.getFullYear(),d.getMonth()-i,1);labels.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);}
+  }
+  labels.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;sel.appendChild(o);});
+  if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
+  else sel.value=labels[labels.length-1];
+}
+function renderCompare(){
+  const label=document.getElementById('cmpFilter').value;if(!label)return;
+  const key=cmpTab==='hour'?parseInt(label):label;
+  const cmpDateVal=getCmpDate();
+  const vals=shopNames.map((_,i)=>sumFor(i,cmpTab,key,cmpTab==='hour'?cmpDateVal:null));
+  const sorted=vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
+  const maxV=Math.max(...vals)||1;const top10=sorted.slice(0,10);
+  if(compareChart)compareChart.destroy();
+  compareChart=new Chart(document.getElementById('compareChart'),{
+    type:'bar',
+    data:{labels:top10.map(x=>shopNames[x.i]),datasets:[{label:'ยอดขาย',data:top10.map(x=>x.v),backgroundColor:top10.map(x=>CHART_COLORS[x.i]+'33'),borderColor:top10.map(x=>CHART_COLORS[x.i]),borderWidth:1.5,borderRadius:5}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
+      x:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},
+      y:{ticks:{color:'#5a5f7a',font:{size:11,family:'IBM Plex Sans Thai'}},grid:{display:false},border:{color:'#e2e4ec'}}}}
+  });
+  const list=document.getElementById('rankList');list.innerHTML='';
+  sorted.forEach(({v,i},rank)=>{
+    const pct=Math.round(v/maxV*100);
+    const rc=rank===0?'gold':rank===1?'silver':rank===2?'bronze':'';
+    list.innerHTML+=`<div class="rank-item"><div class="rank-num ${rc}">${rank+1}</div><div class="rank-name">${shopNames[i]}</div><div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${pct}%;background:${CHART_COLORS[i]}"></div></div></div><div class="rank-val">${fmt(v)} ฿</div></div>`;
+  });
+}
+
+// ==================== HISTORY ====================
+function renderHistory(){
+  const sf=document.getElementById('histShop').value;const df=document.getElementById('histDate').value;
+  let filtered=records.filter(r=>{if(sf!=='all'&&r.shop!==parseInt(sf))return false;if(df&&r.date!==df)return false;return true;}).sort((a,b)=>b.date.localeCompare(a.date)||b.hour-a.hour);
+  const body=document.getElementById('histBody');
+  if(!filtered.length){body.innerHTML=`<tr><td colspan="5"><div class="empty">ไม่มีข้อมูลในช่วงที่เลือก</div></td></tr>`;return;}
+  body.innerHTML=filtered.map(r=>`<tr>
+    <td><span style="font-weight:500">${shopNames[r.shop]}</span></td>
+    <td style="font-family:var(--mono);color:var(--text2)">${r.date}</td>
+    <td style="font-family:var(--mono);color:var(--text2)">${r.timeRange||'-'}</td>
+    <td class="num" style="font-weight:500">${fmt(r.amount)}</td>
+    <td><button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="delRecord(${r.shop},'${r.date}',${r.hourStart},${r.hourEnd})">ลบ</button></td>
+  </tr>`).join('');
+}
+
+async function delRecord(shop,date,hourStart,hourEnd){
+  setSyncStatus('syncing');
+  try {
+    await apiCall('deleteRecord',{shop,date,hourStart,hourEnd});
+    records=records.filter(r=>!(r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd));
+    setSyncStatus('online'); setLastSync();
+    renderHistory(); toast('ลบข้อมูลแล้ว','error');
+  } catch(e){
+    setSyncStatus('offline');
+    toast('❌ ลบไม่สำเร็จ','error');
+  }
+}
+function clearFilter(){document.getElementById('histShop').value='all';document.getElementById('histDate').value='';renderHistory();}
+
+// ==================== SETTINGS ====================
+function saveSheetsUrl(){
+  const val = document.getElementById('sheetsUrlInput')?.value?.trim();
+  if(!val || !val.startsWith('https://docs.google.com')){
+    toast('❌ URL ไม่ถูกต้อง ต้องเป็น Google Sheets URL ค่ะ','error');
+    return;
+  }
+  localStorage.setItem('pg_sheets_url', val);
+  // Update SHEETS_URL runtime (workaround since const)
+  window._sheetsUrl = val;
+  toast('✅ บันทึกลิงก์ Google Sheets แล้วค่ะ');
+}
+
+function getSheetsUrl(){
+  return window._sheetsUrl || localStorage.getItem('pg_sheets_url') || SHEETS_URL;
+}
+
+function renderSettings(){
+  if(isEditingNames)return;
+  const c=document.getElementById('shopNameInputs');c.innerHTML='';
+  shopNames.forEach((s,i)=>{c.innerHTML+=`<div class="shopname-row"><span class="shopname-idx">${String(i+1).padStart(2,'0')}</span><input type="text" class="shopname-input" id="sn_${i}" value="${s}" placeholder="ชื่อช่อง ${i+1}" onfocus="isEditingNames=true" onblur="isEditingNames=false"></div>`;});
+  document.getElementById('totalRecords').textContent=records.length.toLocaleString();
+  // แสดงจัดการผู้ใช้เฉพาะ Admin
+  const mgmt = document.getElementById('userMgmtSection');
+  if(mgmt) mgmt.style.display = isAdmin() ? 'block' : 'none';
+  if(isAdmin()) renderUserList();
+  const savedUrl = localStorage.getItem('pg_sheets_url');
+  const urlInput = document.getElementById('sheetsUrlInput');
+  if(urlInput && savedUrl) urlInput.value = savedUrl;
+  if(savedUrl) window._sheetsUrl = savedUrl;
+}
+
+async function saveShopNames(){
+  const updated=shopNames.map((_,i)=>document.getElementById('sn_'+i)?.value?.trim()||shopNames[i]);
+  setSyncStatus('syncing');
+  try {
+    await apiCall('saveShopNames',{names:updated});
+    shopNames=updated; rebuildSelects(); buildBatchInputs();
+    setSyncStatus('online'); setLastSync();
+    toast('✓ บันทึกชื่อช่องและซิงก์ไป Sheets แล้ว');
+  } catch(e){
+    setSyncStatus('offline');
+    toast('❌ บันทึกชื่อไม่สำเร็จ','error');
+  }
+}
+
+function resetShopNames(){
+  shopNames=Array.from({length:SHOP_COUNT},(_,i)=>`ช่อง ${String(i+1).padStart(2,'0')}`);
+  rebuildSelects(); buildBatchInputs(); renderSettings();
+  toast('รีเซ็ตชื่อช่องแล้ว (ยังไม่ได้บันทึก)','info');
+}
+
+function confirmClear(){document.getElementById('modalOverlay').classList.add('open')}
+async function clearAllData(){
+  closeModal('modalOverlay');
+  setSyncStatus('syncing');
+  document.getElementById('syncBanner').classList.add('show');
+  document.getElementById('syncBanner').textContent = '⏳ กำลังล้างข้อมูลทั้งหมด...';
+  try {
+    await apiCall('clearAll', {});
+    records = [];
+    setSyncStatus('online'); setLastSync();
+    renderCurrentPage();
+    toast('✅ ล้างข้อมูลทั้งหมดสำเร็จ ทั้งเว็บและ Google Sheets', 'success');
+  } catch(e) {
+    setSyncStatus('offline');
+    toast('❌ ล้างข้อมูลไม่สำเร็จ กรุณาลองใหม่', 'error');
+  } finally {
+    document.getElementById('syncBanner').classList.remove('show');
+  }
+}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+
+// ==================== EXPORT ====================
+function openSheetsModal(){
+  // เช็คว่าตั้งค่า SHEETS_URL แล้วหรือยัง
+  const notice = document.querySelector('#sheetsModal [style*="background:var(--bg3)"]');
+  if(getSheetsUrl().includes('SPREADSHEET_ID')){
+    if(notice) notice.style.display='block';
+  } else {
+    if(notice) notice.style.display='none';
+  }
+  document.getElementById('sheetsModal').classList.add('open');
+}
+
+function openSheet(sheetName){
+  if(getSheetsUrl().includes('SPREADSHEET_ID')){
+    toast('❌ กรุณาตั้งค่าลิงก์ Google Sheets ในหน้าตั้งค่าก่อนค่ะ','error');
+    closeModal('sheetsModal');
+    return;
+  }
+  const url = getSheetsUrl();
+  window.open(url, '_blank');
+  toast(`✅ เปิด ${sheetName || 'SalesData'} ใน Google Sheets แล้วค่ะ`);
+}
+
+function openExportModal(){
+  rebuildSelects();
+  document.getElementById('exportModal').classList.add('open');
+}
+function getFilteredRecords(){
+  const sf=document.getElementById('expShop').value;
+  const df=document.getElementById('expDateFrom').value;
+  const dt=document.getElementById('expDateTo').value;
+  return records.filter(r=>{
+    if(sf!=='all'&&r.shop!==parseInt(sf))return false;
+    if(df&&r.date<df)return false;if(dt&&r.date>dt)return false;return true;
+  });
+}
+function doExport(type){
+  const filtered=getFilteredRecords();
+  if(!filtered.length){toast('ไม่มีข้อมูลในช่วงที่เลือก','error');return;}
+  const wb=XLSX.utils.book_new();
+  const expShopVal=document.getElementById('expShop').value;
+  if(type==='raw'){
+    const rows=filtered.sort((a,b)=>a.date.localeCompare(b.date)||a.hour-b.hour||a.shop-b.shop).map(r=>({'ช่อง':shopNames[r.shop],'วันที่':r.date,'ช่วงเวลา':r.timeRange||'-','ยอดขาย (บาท)':r.amount}));
+    const ws=XLSX.utils.json_to_sheet(rows);styleSheet(ws);XLSX.utils.book_append_sheet(wb,ws,'รายละเอียด');
+  }
+  if(type==='hourly'){
+    const shopsToShow=expShopVal==='all'?shopNames.map((_,i)=>i):[parseInt(expShopVal)];
+    const pivot={};filtered.forEach(r=>{const k=`${r.date}__${r.hour}`;if(!pivot[k])pivot[k]={date:r.date,hour:r.hour};pivot[k][r.shop]=(pivot[k][r.shop]||0)+r.amount;});
+    const rows=Object.values(pivot).sort((a,b)=>a.date.localeCompare(b.date)||a.hour-b.hour).map(p=>{const row={'วันที่':p.date,'ชั่วโมง':`${String(p.hour).padStart(2,'0')}:00`};shopsToShow.forEach(i=>row[shopNames[i]]=(p[i]||0));row['รวม']=shopsToShow.reduce((s,i)=>s+(p[i]||0),0);return row;});
+    const ws=XLSX.utils.json_to_sheet(rows);styleSheet(ws);XLSX.utils.book_append_sheet(wb,ws,'สรุปรายชั่วโมง');
+  }
+  if(type==='daily'){
+    const shopsToShow=expShopVal==='all'?shopNames.map((_,i)=>i):[parseInt(expShopVal)];
+    const pivot={};filtered.forEach(r=>{if(!pivot[r.date])pivot[r.date]={date:r.date};pivot[r.date][r.shop]=(pivot[r.date][r.shop]||0)+r.amount;});
+    const rows=Object.values(pivot).sort((a,b)=>a.date.localeCompare(b.date)).map(p=>{const row={'วันที่':p.date};shopsToShow.forEach(i=>row[shopNames[i]]=(p[i]||0));row['รวมทั้งหมด']=shopsToShow.reduce((s,i)=>s+(p[i]||0),0);return row;});
+    const ws=XLSX.utils.json_to_sheet(rows);styleSheet(ws);XLSX.utils.book_append_sheet(wb,ws,'สรุปรายวัน');
+  }
+  if(type==='monthly'){
+    const shopsToShow=expShopVal==='all'?shopNames.map((_,i)=>i):[parseInt(expShopVal)];
+    const pivot={};filtered.forEach(r=>{const m=r.date.slice(0,7);if(!pivot[m])pivot[m]={month:m};pivot[m][r.shop]=(pivot[m][r.shop]||0)+r.amount;});
+    const rows=Object.values(pivot).sort((a,b)=>a.month.localeCompare(b.month)).map(p=>{const row={'เดือน':p.month};shopsToShow.forEach(i=>row[shopNames[i]]=(p[i]||0));row['รวมทั้งหมด']=shopsToShow.reduce((s,i)=>s+(p[i]||0),0);return row;});
+    const ws=XLSX.utils.json_to_sheet(rows);styleSheet(ws);XLSX.utils.book_append_sheet(wb,ws,'สรุปรายเดือน');
+  }
+  const totalAmt=filtered.reduce((a,b)=>a+b.amount,0);
+  const byShop=shopNames.map((s,i)=>({'ช่อง':s,'จำนวนรายการ':filtered.filter(r=>r.shop===i).length,'ยอดขายรวม (บาท)':filtered.filter(r=>r.shop===i).reduce((a,b)=>a+b.amount,0)})).filter(r=>r['จำนวนรายการ']>0).sort((a,b)=>b['ยอดขายรวม (บาท)']-a['ยอดขายรวม (บาท)']);
+  byShop.push({'ช่อง':'รวมทั้งหมด','จำนวนรายการ':filtered.length,'ยอดขายรวม (บาท)':totalAmt});
+  const wsSummary=XLSX.utils.json_to_sheet(byShop);styleSheet(wsSummary);XLSX.utils.book_append_sheet(wb,wsSummary,'สรุปภาพรวม');
+  const filename=`pumpkin_mcn_sales_${type}_${today()}.xlsx`;
+  XLSX.writeFile(wb,filename);closeModal('exportModal');
+  toast(`✓ ดาวน์โหลด ${filename} สำเร็จ`);
+}
+function styleSheet(ws){
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  const colWidths=[];
+  for(let c=range.s.c;c<=range.e.c;c++){let max=10;for(let r=range.s.r;r<=range.e.r;r++){const cell=ws[XLSX.utils.encode_cell({r,c})];if(cell&&cell.v)max=Math.max(max,String(cell.v).length+2);}colWidths.push({wch:Math.min(max,30)});}
+  ws['!cols']=colWidths;
+}
+
+
+// ==================== AUTH ====================
+const DEFAULT_USERS = [
+  {username:"poppy",   password:"poppy1234",  displayName:"ป๊อปปี้",  role:"admin"},
+  {username:"staff01", password:"staff1234",  displayName:"ทีมงาน 1", role:"user"},
+  {username:"staff02", password:"staff2234",  displayName:"ทีมงาน 2", role:"user"},
+  {username:"staff03", password:"staff3234",  displayName:"ทีมงาน 3", role:"user"},
+];
+
+function getUsers(){
+  const saved = localStorage.getItem('pg_users');
+  if(saved){
+    try{ return JSON.parse(saved); }catch(e){}
+  }
+  // ครั้งแรกที่ใช้งาน — บันทึก DEFAULT_USERS ลง localStorage ทันที
+  localStorage.setItem('pg_users', JSON.stringify(DEFAULT_USERS));
+  return DEFAULT_USERS;
+}
+function saveUsersData(users){ localStorage.setItem('pg_users', JSON.stringify(users)); }
+
+function togglePass(){
+  const input = document.getElementById('loginPass');
+  const icon = document.getElementById('eyeIcon');
+  if(input.type === 'password'){
+    input.type = 'text';
+    icon.innerHTML = '<path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="2.5"/><line x1="2" y1="2" x2="18" y2="18"/>';
+  } else {
+    input.type = 'password';
+    icon.innerHTML = '<path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="10" cy="10" r="2.5"/>';
+  }
+}
+
+function doLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const users = getUsers();
+  const found = users.find(x => x.username === u && x.password === p);
+  if(found){
+    localStorage.setItem('pg_session', JSON.stringify({username:found.username, displayName:found.displayName, role:found.role||'user', ts:Date.now()}));
+    document.getElementById('loginOverlay').classList.add('hidden');
+    document.getElementById('userAvatar').textContent = found.displayName.charAt(0).toUpperCase();
+    document.getElementById('userDisplayName').textContent = found.displayName;
+    document.getElementById('loginError').classList.remove('show');
+    document.getElementById('loginPass').value='';
+    init();
+  } else {
+    document.getElementById('loginError').classList.add('show');
+    document.getElementById('loginPass').value='';
+  }
+}
+
+function confirmLogout(){
+  if(confirm('ต้องการออกจากระบบไหมคะ?')){
+    doLogout();
+  }
+}
+
+function doLogout(){
+  localStorage.removeItem('pg_session');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+}
+
+function currentSession(){
+  const s = localStorage.getItem('pg_session');
+  return s ? JSON.parse(s) : null;
+}
+function isAdmin(){
+  const s = currentSession();
+  return s && s.role === 'admin';
+}
+
+function checkSession(){
+  const sess = localStorage.getItem('pg_session');
+  if(!sess){ document.getElementById('loginOverlay').classList.remove('hidden'); return false; }
+  const data = JSON.parse(sess);
+  // session หมดอายุใน 7 วัน
+  if(Date.now() - data.ts > 7*24*60*60*1000){
+    localStorage.removeItem('pg_session');
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    return false;
+  }
+  document.getElementById('loginOverlay').classList.add('hidden');
+  document.getElementById('userAvatar').textContent = data.displayName.charAt(0).toUpperCase();
+  document.getElementById('userDisplayName').textContent = data.displayName;
+  return true;
+}
+
+// User management UI
+function renderUserList(){
+  const users = getUsers();
+  const list = document.getElementById('userList');
+  if(!list) return;
+  list.innerHTML = users.map((u,i) => `
+    <div style="display:flex;gap:8px;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap">
+      <input type="text" class="form-control" value="${u.displayName}" placeholder="ชื่อที่แสดง" id="uname_${i}" style="width:120px;flex-shrink:0;font-size:13px">
+      <input type="text" class="form-control" value="${u.username}" placeholder="username" id="uuser_${i}" style="width:110px;flex-shrink:0;font-size:13px">
+      <input type="text" class="form-control" value="${u.password}" placeholder="password" id="upass_${i}" style="width:110px;flex-shrink:0;font-size:13px">
+      <select class="form-control" id="urole_${i}" style="width:90px;flex-shrink:0;font-size:13px">
+        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+        <option value="user"  ${u.role!=='admin'?'selected':''}>User</option>
+      </select>
+      <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeUser(${i})">ลบ</button>
+    </div>`).join('');
+}
+
+function addUserRow(){
+  const users = getUsers();
+  users.push({username:'user'+(users.length+1), password:'password', displayName:'ผู้ใช้ '+(users.length+1)});
+  saveUsersData(users);
+  renderUserList();
+}
+
+function removeUser(idx){
+  const users = getUsers();
+  users.splice(idx,1);
+  saveUsersData(users);
+  renderUserList();
+  toast('ลบผู้ใช้แล้วค่ะ');
+}
+
+function saveUsers(){
+  const users = getUsers();
+  const updated = users.map((_,i) => ({
+    displayName: document.getElementById('uname_'+i)?.value?.trim() || _.displayName,
+    username:    document.getElementById('uuser_'+i)?.value?.trim() || _.username,
+    password:    document.getElementById('upass_'+i)?.value?.trim() || _.password,
+    role:        document.getElementById('urole_'+i)?.value || _.role || 'user',
+  }));
+  saveUsersData(updated);
+  toast('✅ บันทึกผู้ใช้งานทั้งหมดแล้วค่ะ');
+}
+
+// Start
+if(checkSession()){ init(); }
+else { document.getElementById('loginUser').focus(); }
+
+</script>
+</body>
+</html>
