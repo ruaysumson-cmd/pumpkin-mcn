@@ -4,55 +4,67 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pumpkin MCN — ระบบบันทึกยอดขาย</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#f5f6fa;--bg2:#ffffff;--bg3:#f0f1f5;--bg4:#e8eaf0;
-  --line:#e2e4ec;--line2:#d0d3df;
-  --accent:#2563eb;--accent2:#059669;--accent3:#dc4c2a;
-  --text:#1a1d2e;--text2:#5a5f7a;--text3:#9096b0;
-  --font:'IBM Plex Sans Thai',sans-serif;--mono:'IBM Plex Mono',monospace;
-  --r:10px;--r2:14px;
-  --shadow:0 1px 4px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.04);
-  --shadow2:0 2px 8px rgba(0,0,0,0.08),0 8px 24px rgba(0,0,0,0.05);
+  --bg:#faf8f5;
+  --bg2:#ffffff;
+  --bg3:#f7f4ef;
+  --bg4:#ede9e0;
+  --line:#e8e2d9;
+  --line2:#d4cdc0;
+  --accent:#b8955a;
+  --accent2:#2d6a4f;
+  --accent3:#c0392b;
+  --accentlt:#f5ede0;
+  --text:#1c1814;
+  --text2:#6b5f50;
+  --text3:#a89880;
+  --font:'Sarabun',sans-serif;
+  --display:'Playfair Display',serif;
+  --mono:'DM Mono',monospace;
+  --r:8px;--r2:14px;
+  --shadow:0 1px 3px rgba(90,70,40,0.08),0 4px 16px rgba(90,70,40,0.06);
+  --shadow2:0 4px 24px rgba(90,70,40,0.12),0 1px 4px rgba(90,70,40,0.08);
+  --gold:#b8955a;--goldlt:#f5ede0;--golddark:#8a6a35;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
 .app{display:flex;min-height:100vh}
-.sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;box-shadow:var(--shadow)}
-.main{margin-left:230px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-.logo{padding:22px 20px 18px;border-bottom:1px solid var(--line)}
-.logo-badge{display:inline-block;background:#eff6ff;color:var(--accent);font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:6px;margin-bottom:8px;border:1px solid #dbeafe}
-.logo-name{font-size:16px;font-weight:600;color:var(--text)}
-.logo-sub{font-size:11px;color:var(--text3);margin-top:1px}
-.nav{padding:12px 10px;flex:1}
-.nav-section{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;font-family:var(--mono);padding:8px 8px 4px;margin-top:4px}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);cursor:pointer;color:var(--text2);font-size:13px;transition:all .15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left}
-.nav-item:hover{background:var(--bg3);color:var(--text)}
-.nav-item.active{background:#eff6ff;color:var(--accent);font-weight:500}
-.nav-icon{width:16px;height:16px;opacity:.6;flex-shrink:0}
-.nav-item.active .nav-icon{opacity:1}
-.sidebar-bottom{padding:14px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--text3);font-family:var(--mono)}
+.sidebar{width:235px;flex-shrink:0;background:#1c1814;border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .3s;box-shadow:4px 0 24px rgba(0,0,0,0.15)}
+.main{margin-left:235px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.logo-badge{display:inline-block;background:rgba(184,149,90,0.15);color:var(--gold);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:3px 10px;border-radius:4px;margin-bottom:10px;border:1px solid rgba(184,149,90,0.3)}
+.logo-name{font-size:18px;font-weight:700;color:#f5ede0;font-family:var(--display);letter-spacing:0.3px}
+.logo-sub{font-size:11px;color:rgba(255,255,255,0.35);margin-top:3px;letter-spacing:0.5px}
+.nav{padding:16px 10px;flex:1}
+.nav-section{font-size:9px;color:rgba(255,255,255,0.25);text-transform:uppercase;letter-spacing:2px;font-family:var(--mono);padding:10px 10px 4px;margin-top:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r);cursor:pointer;color:rgba(255,255,255,0.5);font-size:13px;transition:all .2s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;letter-spacing:0.2px}
+.nav-item:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.85)}
+.nav-item.active{background:rgba(184,149,90,0.15);color:var(--gold);font-weight:500;border-left:2px solid var(--gold);padding-left:10px}
+.nav-icon{width:15px;height:15px;opacity:.6;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1;color:var(--gold)}
+.sidebar-bottom{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:rgba(255,255,255,0.25);font-family:var(--mono)}
 .sync-status{display:flex;align-items:center;gap:6px;margin-bottom:4px}
 .sync-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.sync-dot.online{background:var(--accent2);animation:pulse 2s infinite}
+.sync-dot.online{background:#2d6a4f;animation:pulse 2s infinite}
 .sync-dot.syncing{background:#f59e0b;animation:pulse .6s infinite}
 .sync-dot.offline{background:var(--accent3)}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
-.topbar{height:58px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 24px;gap:10px;position:sticky;top:0;z-index:50}
-.topbar-title{font-size:14px;font-weight:600;flex:1;color:var(--text)}
-.topbar-time{font-family:var(--mono);font-size:12px;color:var(--text2);background:var(--bg3);padding:5px 11px;border-radius:8px;border:1px solid var(--line)}
+.topbar{height:60px;background:var(--bg2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 28px;gap:10px;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 var(--line)}
+.topbar-title{font-size:15px;font-weight:600;flex:1;color:var(--text);font-family:var(--display);letter-spacing:0.3px}
+.topbar-time{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--bg3);padding:5px 12px;border-radius:6px;border:1px solid var(--line);letter-spacing:0.5px}
 .hamburger{display:none;background:none;border:none;color:var(--text2);cursor:pointer;padding:4px}
 .content{padding:24px;flex:1}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);font-size:13px;font-family:var(--font);cursor:pointer;transition:all .15s;border:none;font-weight:500}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .btn-ghost{background:var(--bg3);color:var(--text2);border:1px solid var(--line2)}
 .btn-ghost:hover:not(:disabled){background:var(--bg4);color:var(--text)}
-.btn-primary{background:var(--accent);color:#fff}
-.btn-primary:hover:not(:disabled){background:#1d4ed8}
-.btn-success{background:#ecfdf5;color:var(--accent2);border:1px solid #a7f3d0}
+.btn-primary{background:linear-gradient(135deg,var(--gold),var(--golddark));color:#fff;box-shadow:0 2px 8px rgba(184,149,90,0.3)}
+.btn-primary:hover:not(:disabled){background:linear-gradient(135deg,#c9a96e,var(--gold));box-shadow:0 4px 12px rgba(184,149,90,0.4)}
+.btn-success{background:#f0faf5;color:var(--accent2);border:1px solid #b7e4cc}
 .btn-success:hover:not(:disabled){background:#d1fae5}
 .btn-danger{background:#fef2f0;color:var(--accent3);border:1px solid #fecdc7}
 .btn-danger:hover:not(:disabled){background:#fee2de}
@@ -71,15 +83,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 .metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:24px}
 .metric-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
-.metric-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ac,var(--accent));border-radius:var(--r2) var(--r2) 0 0}
+.metric-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--ac,var(--gold));border-radius:var(--r2) var(--r2) 0 0;opacity:.7}
 .metric-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:var(--mono)}
 .metric-value{font-size:26px;font-weight:600;color:var(--text);font-family:var(--mono);line-height:1}
 .metric-sub{font-size:11px;color:var(--text3);margin-top:4px}
 .metric-badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 7px;border-radius:20px;margin-top:7px;font-weight:500}
 .badge-up{background:#ecfdf5;color:#059669}.badge-dn{background:#fef2f0;color:#dc4c2a}.badge-nu{background:var(--bg3);color:var(--text3)}
-.period-tabs{display:flex;gap:0;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:20px;box-shadow:var(--shadow)}
+.period-tabs{display:flex;gap:0;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:3px;width:fit-content;margin-bottom:20px;flex-wrap:wrap}
 .ptab{padding:6px 18px;border-radius:7px;font-size:12px;cursor:pointer;color:var(--text3);border:none;background:none;font-family:var(--font);transition:all .15s;font-weight:500}
-.ptab.active{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(37,99,235,0.3)}
+.ptab.active{background:linear-gradient(135deg,var(--gold),var(--golddark));color:#fff;box-shadow:0 2px 8px rgba(184,149,90,0.35)}
 .chart-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:20px;margin-bottom:20px;box-shadow:var(--shadow)}
 .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
 .card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono)}
@@ -87,7 +99,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .section-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:12px}
 .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:24px}
 .shop-card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;transition:all .15s;box-shadow:var(--shadow)}
-.shop-card:hover{border-color:var(--accent);box-shadow:var(--shadow2);transform:translateY(-1px)}
+.shop-card:hover{border-color:var(--gold);box-shadow:0 8px 24px rgba(184,149,90,0.12);transform:translateY(-2px)}
 .shop-card-name{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px}
 .shop-card-val{font-size:19px;font-weight:600;font-family:var(--mono);color:var(--text)}
 .form-section{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:22px;margin-bottom:16px;max-width:700px;box-shadow:var(--shadow)}
@@ -107,7 +119,7 @@ select.form-control option{background:#fff}
 .rank-list{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
 .rank-item{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:11px 16px;box-shadow:var(--shadow)}
 .rank-num{font-family:var(--mono);font-size:11px;color:var(--text3);width:24px;flex-shrink:0;text-align:center;font-weight:600}
-.rank-num.gold{color:#d97706}.rank-num.silver{color:#6b7280}.rank-num.bronze{color:#92400e}
+.rank-num.gold{color:#b8955a;font-size:14px}.rank-num.silver{color:#909090}.rank-num.bronze{color:#a0694a}
 .rank-name{flex:1;font-size:13px;color:var(--text);font-weight:500}
 .rank-bar-wrap{width:130px;flex-shrink:0}
 .rank-bar-bg{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden}
@@ -115,13 +127,16 @@ select.form-control option{background:#fff}
 .rank-val{font-family:var(--mono);font-size:12px;color:var(--text2);width:95px;text-align:right;flex-shrink:0}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{text-align:left;padding:11px 16px;border-bottom:2px solid var(--line);color:var(--text3);font-weight:600;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;background:var(--bg3)}
+th{text-align:left;padding:11px 16px;border-bottom:1px solid var(--line2);color:var(--text3);font-weight:500;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:1.2px;white-space:nowrap;background:var(--bg3)}
 td{padding:11px 16px;border-bottom:1px solid var(--line);color:var(--text);white-space:nowrap}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#f8f9fe}
 .num{text-align:right;font-family:var(--mono)}
-.shopname-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;margin-bottom:16px}
-.shopname-row{display:flex;align-items:center;gap:8px}
+.shopname-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:16px}
+.shopname-row{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
+.shop-avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--line2);flex-shrink:0;cursor:pointer;background:var(--bg4)}
+.shop-avatar-placeholder{width:40px;height:40px;border-radius:50%;background:var(--goldlt);border:2px dashed var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:18px;color:var(--gold);transition:all .2s}
+.shop-avatar-placeholder:hover{background:var(--gold);color:#fff}
 .shopname-idx{font-family:var(--mono);font-size:11px;color:var(--text3);width:28px;text-align:right;flex-shrink:0;font-weight:600}
 .shopname-input{flex:1;padding:8px 10px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:all .15s}
 .shopname-input:focus{border-color:var(--accent);background:var(--bg2);box-shadow:0 0 0 3px rgba(37,99,235,0.08)}
@@ -149,10 +164,10 @@ tr:hover td{background:#f8f9fe}
 /* LOGIN */
 .login-overlay{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;align-items:center;justify-content:center}
 .login-overlay.hidden{display:none}
-.login-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r2);padding:36px 32px;width:380px;max-width:90vw;box-shadow:var(--shadow2)}
+.login-box{background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:40px 36px;width:400px;max-width:90vw;box-shadow:0 20px 60px rgba(90,70,40,0.15)}
 .login-logo{text-align:center;margin-bottom:28px}
-.login-logo-badge{display:inline-block;background:#eff6ff;color:var(--accent);font-family:var(--mono);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #dbeafe}
-.login-logo-name{font-size:20px;font-weight:600;color:var(--text)}
+.login-logo-badge{display:inline-block;background:var(--goldlt);color:var(--golddark);font-family:var(--mono);font-size:10px;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:4px;margin-bottom:10px;border:1px solid rgba(184,149,90,0.25)}
+.login-logo-name{font-size:24px;font-weight:700;color:var(--text);font-family:var(--display);letter-spacing:0.5px}
 .login-logo-sub{font-size:12px;color:var(--text3);margin-top:2px}
 .login-error{background:#fef2f0;border:1px solid #fecdc7;border-radius:var(--r);padding:8px 12px;font-size:12px;color:var(--accent3);margin-bottom:12px;display:none}
 .login-error.show{display:block}
@@ -277,9 +292,11 @@ tr:hover td{background:#f8f9fe}
       <div class="metric-grid" id="metricRow"></div>
       <div class="period-tabs">
         <button class="ptab active" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
-        <button class="ptab" onclick="setPeriod(this,'day')">รายวัน</button>
-        <button class="ptab" onclick="setPeriod(this,'week')">รายสัปดาห์</button>
-        <button class="ptab" onclick="setPeriod(this,'month')">รายเดือน</button>
+        <button class="ptab" onclick="setPeriod(this,'day')">1 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'7day')">7 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'30day')">30 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'60day')">60 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'90day')">90 วัน</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
@@ -774,40 +791,40 @@ function rebuildSelects(){
 function getWeekStart(dateStr){
   const d = new Date(dateStr);
   const day = d.getDay();
-  const diff = d.getDate() - day;
-  const ws = new Date(d.setDate(diff));
+  const ws = new Date(d);
+  ws.setDate(d.getDate() - day);
   return ws.toISOString().slice(0,10);
 }
 
-function getLabels(period){
-  if(period==='hour') return Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
-  if(period==='day'){
-    const sel = getSelectedDate();
-    const anchor = sel ? new Date(sel) : new Date();
-    const days=[];
-    for(let i=6;i>=0;i--){
-      const dd=new Date(anchor);
-      dd.setDate(anchor.getDate()-i);
-      days.push(dd.toISOString().slice(0,10));
-    }
-    return days;
+function getDaysBack(anchorDate, numDays){
+  const days = [];
+  const anchor = anchorDate ? new Date(anchorDate) : new Date();
+  for(let i=numDays-1; i>=0; i--){
+    const dd = new Date(anchor);
+    dd.setDate(anchor.getDate()-i);
+    days.push(dd.toISOString().slice(0,10));
   }
+  return days;
+}
+
+function getLabels(period, anchorDate){
+  const sel = anchorDate || getSelectedDate();
+  if(period==='hour') return Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+  if(period==='day') return [sel]; // 1 วัน
+  if(period==='7day')  return getDaysBack(sel, 7);
+  if(period==='30day') return getDaysBack(sel, 30);
+  if(period==='60day') return getDaysBack(sel, 60);
+  if(period==='90day') return getDaysBack(sel, 90);
+  // legacy
   if(period==='week'){
     const weeks=[];
     const d=new Date();
-    for(let i=7;i>=0;i--){
-      const dd=new Date(d);
-      dd.setDate(d.getDate()-(i*7));
-      weeks.push(getWeekStart(dd.toISOString().slice(0,10)));
-    }
+    for(let i=7;i>=0;i--){const dd=new Date(d);dd.setDate(d.getDate()-(i*7));weeks.push(getWeekStart(dd.toISOString().slice(0,10)));}
     return [...new Set(weeks)];
   }
   const months=[];
   const d=new Date();
-  for(let i=5;i>=0;i--){
-    const mm=new Date(d.getFullYear(),d.getMonth()-i,1);
-    months.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);
-  }
+  for(let i=5;i>=0;i--){const mm=new Date(d.getFullYear(),d.getMonth()-i,1);months.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);}
   return months;
 }
 
@@ -827,14 +844,13 @@ function sumFor(shopIdx, period, key, dateOverride){
   return records.filter(r=>{
     if(shopIdx!==null && r.shop!==shopIdx) return false;
     const rDate = String(r.date).slice(0,10);
-    if(period==='hour'){
-      return rDate===baseDate && parseInt(r.hourStart)===parseInt(key);
-    }
-    if(period==='day') return rDate===key;
-    if(period==='week'){
-      const ws = getWeekStart(rDate);
-      return ws===key;
-    }
+    if(period==='hour') return rDate===baseDate && parseInt(r.hourStart)===parseInt(key);
+    if(period==='day')   return rDate===key;
+    if(period==='7day')  return rDate===key;
+    if(period==='30day') return rDate===key;
+    if(period==='60day') return rDate===key;
+    if(period==='90day') return rDate===key;
+    if(period==='week'){ return getWeekStart(rDate)===key; }
     if(period==='month') return rDate.slice(0,7)===key;
     return false;
   }).reduce((a,b)=>a+b.amount,0);
@@ -853,11 +869,11 @@ function renderSummary(){
     <div class="metric-card" style="--ac:var(--accent2)"><div class="metric-label">ช่องทั้งหมด</div><div class="metric-value">35</div><div class="metric-sub">ช่อง</div></div>
     <div class="metric-card" style="--ac:#7c3aed"><div class="metric-label">ช่วงสูงสุด</div><div class="metric-value" style="font-size:18px">${labels[bestI]||'-'}</div><div class="metric-sub">${fmt(totals[bestI]||0)} บาท</div></div>
     <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='day'?'วัน':'เดือน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
-  const pLabels=periodTab==='hour'?labels:periodTab==='week'?labels.map(l=>'สัปดาห์ '+l.slice(5)):labels.map(l=>l.slice(5));
+  const pLabels = periodTab==='hour' ? labels : labels.map(l=>l.slice(5));
   if(summaryChart)summaryChart.destroy();
   summaryChart=new Chart(document.getElementById('summaryChart'),{
     type:'bar',
-    data:{labels:pLabels,datasets:[{label:'ยอดขาย',data:totals,backgroundColor:'rgba(37,99,235,0.12)',borderColor:'#2563eb',borderWidth:1.5,borderRadius:5,hoverBackgroundColor:'rgba(37,99,235,0.22)'}]},
+    data:{labels:pLabels,datasets:[{label:'ยอดขาย',data:totals,backgroundColor:'rgba(184,149,90,0.15)',borderColor:'#b8955a',borderWidth:1.5,borderRadius:5,hoverBackgroundColor:'rgba(184,149,90,0.28)'}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
       y:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},
       x:{ticks:{color:'#9096b0',font:{size:10,family:'IBM Plex Mono'},maxRotation:45,autoSkip:labels.length>12},grid:{display:false},border:{color:'#e2e4ec'}}}}
@@ -866,30 +882,49 @@ function renderSummary(){
   const selDate = getSelectedDate();
   const labelEl = document.getElementById('summaryDateLabel');
   if(labelEl){
-    if(periodTab==='hour') labelEl.textContent = `ดูข้อมูลวันที่ ${selDate}`;
-    else if(periodTab==='day') labelEl.textContent = `7 วันก่อนหน้า ${selDate}`;
-    else if(periodTab==='week') labelEl.textContent = `8 สัปดาห์ล่าสุด`;
-    else labelEl.textContent = `6 เดือนล่าสุด`;
+    const labelMap = {
+      hour: `วันที่ ${selDate}`,
+      day: `วันที่ ${selDate}`,
+      '7day': `7 วันย้อนหลัง จาก ${selDate}`,
+      '30day': `30 วันย้อนหลัง จาก ${selDate}`,
+      '60day': `60 วันย้อนหลัง จาก ${selDate}`,
+      '90day': `90 วันย้อนหลัง จาก ${selDate}`,
+    };
+    if(labelEl) labelEl.textContent = labelMap[periodTab] || '';
   }
 
   const grid=document.getElementById('shopGrid');grid.innerHTML='';
   shopNames.forEach((s,i)=>{
     let curKey, prevKey;
     if(periodTab==='hour'){ curKey=String(nowHour()); prevKey=String(nowHour()-1); }
-    else if(periodTab==='day'){ curKey=selDate; const pl=getLabels('day'); prevKey=pl[pl.length-2]||''; }
-    else if(periodTab==='week'){ curKey=getWeekStart(selDate); const pl=getLabels('week'); prevKey=pl[pl.length-2]||''; }
-    else { curKey=selDate.slice(0,7); const pl=getLabels('month'); prevKey=pl[pl.length-2]||''; }
+    else if(periodTab==='day'){ curKey=selDate; prevKey=''; }
+    else {
+      const pl=getLabels(periodTab, selDate);
+      curKey=pl[pl.length-1]||selDate;
+      prevKey=pl[pl.length-2]||'';
+    }
     const cur=sumFor(i,periodTab,curKey);
     const prev = sumFor(i,periodTab,prevKey);
     const pct=prev>0?Math.round((cur-prev)/prev*100):null;
     const badge=pct===null?`<span class="metric-badge badge-nu">ยังไม่มีเทียบ</span>`
       :pct>=0?`<span class="metric-badge badge-up">▲ ${pct}%</span>`
       :`<span class="metric-badge badge-dn">▼ ${Math.abs(pct)}%</span>`;
+    const photos = getShopPhotos();
+    const photoHtml = photos[i]
+      ? `<img src="${photos[i]}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--line);flex-shrink:0">`
+      : `<div style="width:36px;height:36px;border-radius:50%;background:var(--goldlt);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--gold);flex-shrink:0">${s.charAt(0).toUpperCase()}</div>`;
     grid.innerHTML+=`<div class="shop-card" style="cursor:pointer" onclick="showShopDetail(${i})">
-      <div class="shop-card-name">${s}</div>
-      <div class="shop-card-val">${fmtBig(cur)}</div>
-      <div style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-top:2px">${fmtFull(cur)} ฿</div>
-      ${badge}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        ${photoHtml}
+        <div style="flex:1;min-width:0">
+          <div class="shop-card-name">${s}</div>
+          <div class="shop-card-val">${fmtBig(cur)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--mono)">${fmtFull(cur)} ฿</div>
+        ${badge}
+      </div>
     </div>`;
   });
 }
@@ -899,11 +934,14 @@ function showShopDetail(shopIdx){
   const s = shopNames[shopIdx];
   document.getElementById('shopDetailTitle').textContent = `📺 ${s}`;
 
+  const sel = getSelectedDate();
   const periods = [
-    {label:'รายชั่วโมง (วันนี้)', period:'hour', labels: getLabels('hour')},
-    {label:'รายวัน (7 วัน)', period:'day', labels: getLabels('day')},
-    {label:'รายสัปดาห์ (8 สัปดาห์)', period:'week', labels: getLabels('week')},
-    {label:'รายเดือน (6 เดือน)', period:'month', labels: getLabels('month')},
+    {label:'รายชั่วโมง', period:'hour', labels: getLabels('hour', sel)},
+    {label:'1 วัน', period:'day', labels: getLabels('day', sel)},
+    {label:'7 วันย้อนหลัง', period:'7day', labels: getLabels('7day', sel)},
+    {label:'30 วันย้อนหลัง', period:'30day', labels: getLabels('30day', sel)},
+    {label:'60 วันย้อนหลัง', period:'60day', labels: getLabels('60day', sel)},
+    {label:'90 วันย้อนหลัง', period:'90day', labels: getLabels('90day', sel)},
   ];
 
   let html = '';
@@ -1003,7 +1041,7 @@ async function saveBatch(){
 }
 
 // ==================== COMPARE ====================
-const CHART_COLORS=['#2563eb','#059669','#dc4c2a','#d4537e','#7c3aed','#65a30d','#d97706','#dc2626','#0e7490','#6d28d9','#1d4ed8','#15803d','#b45309','#991b1b','#4338ca','#0369a1','#166534','#92400e','#7f1d1d','#3730a3','#0891b2','#ca8a04','#84cc16','#f87171','#a78bfa','#6ee7b7','#fca5a5','#f9a8d4','#cbd5e1','#93c5fd','#fcd34d','#bbf7d0','#fecaca','#c4b5fd','#34d399'];
+const CHART_COLORS=['#b8955a','#059669','#dc4c2a','#d4537e','#7c3aed','#65a30d','#d97706','#dc2626','#0e7490','#6d28d9','#1d4ed8','#15803d','#b45309','#991b1b','#4338ca','#0369a1','#166534','#92400e','#7f1d1d','#3730a3','#0891b2','#ca8a04','#84cc16','#f87171','#a78bfa','#6ee7b7','#fca5a5','#f9a8d4','#cbd5e1','#93c5fd','#fcd34d','#bbf7d0','#fecaca','#c4b5fd','#34d399'];
 
 function setCmpPeriod(btn,p){btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');cmpTab=p;buildCmpFilter();renderCompare();}
 
@@ -1026,17 +1064,8 @@ function buildCmpFilter(){
   let labels=[];
   if(cmpTab==='hour'){
     labels=Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
-  } else if(cmpTab==='day'){
-    const anchor=new Date(cmpDateVal);
-    for(let i=6;i>=0;i--){const dd=new Date(anchor);dd.setDate(anchor.getDate()-i);labels.push(dd.toISOString().slice(0,10));}
-  } else if(cmpTab==='week'){
-    const anchor=new Date(cmpDateVal);
-    const weeks=[];
-    for(let i=7;i>=0;i--){const dd=new Date(anchor);dd.setDate(anchor.getDate()-(i*7));weeks.push(getWeekStart(dd.toISOString().slice(0,10)));}
-    labels=[...new Set(weeks)];
   } else {
-    const d=new Date();
-    for(let i=5;i>=0;i--){const mm=new Date(d.getFullYear(),d.getMonth()-i,1);labels.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);}
+    labels = getLabels(cmpTab, cmpDateVal);
   }
   labels.forEach(l=>{const o=document.createElement('option');o.value=l;o.textContent=l;sel.appendChild(o);});
   if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
@@ -1046,7 +1075,7 @@ function renderCompare(){
   const label=document.getElementById('cmpFilter').value;if(!label)return;
   const key=cmpTab==='hour'?parseInt(label):label;
   const cmpDateVal=getCmpDate();
-  const vals=shopNames.map((_,i)=>sumFor(i,cmpTab,key,cmpTab==='hour'?cmpDateVal:null));
+  const vals=shopNames.map((_,i)=>sumFor(i,cmpTab,key,['hour','day','7day','30day','60day','90day'].includes(cmpTab)?cmpDateVal:null));
   const sorted=vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
   const maxV=Math.max(...vals)||1;const top10=sorted.slice(0,10);
   if(compareChart)compareChart.destroy();
@@ -1095,6 +1124,30 @@ async function delRecord(shop,date,hourStart,hourEnd){
 function clearFilter(){document.getElementById('histShop').value='all';document.getElementById('histDate').value='';renderHistory();}
 
 // ==================== SETTINGS ====================
+// ==================== SHOP PHOTOS ====================
+function getShopPhotos(){
+  try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){ return {}; }
+}
+function saveShopPhotos(photos){ localStorage.setItem('pg_photos', JSON.stringify(photos)); }
+
+function uploadShopPhoto(idx){
+  document.getElementById('ph_'+idx)?.click();
+}
+
+function handlePhotoUpload(idx, input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const photos = getShopPhotos();
+    photos[idx] = e.target.result;
+    saveShopPhotos(photos);
+    renderSettings();
+    toast(`✅ บันทึกรูป ${shopNames[idx]} แล้วค่ะ`);
+  };
+  reader.readAsDataURL(file);
+}
+
 function saveSheetsUrl(){
   const val = document.getElementById('sheetsUrlInput')?.value?.trim();
   if(!val || !val.startsWith('https://docs.google.com')){
@@ -1114,7 +1167,18 @@ function getSheetsUrl(){
 function renderSettings(){
   if(isEditingNames)return;
   const c=document.getElementById('shopNameInputs');c.innerHTML='';
-  shopNames.forEach((s,i)=>{c.innerHTML+=`<div class="shopname-row"><span class="shopname-idx">${String(i+1).padStart(2,'0')}</span><input type="text" class="shopname-input" id="sn_${i}" value="${s}" placeholder="ชื่อช่อง ${i+1}" onfocus="isEditingNames=true" onblur="isEditingNames=false"></div>`;});
+  const shopPhotos = getShopPhotos();
+  shopNames.forEach((s,i)=>{
+    const photo = shopPhotos[i] || '';
+    const avatarHtml = photo
+      ? `<img class="shop-avatar" src="${photo}" onclick="uploadShopPhoto(${i})" title="เปลี่ยนรูป">`
+      : `<div class="shop-avatar-placeholder" onclick="uploadShopPhoto(${i})" title="เพิ่มรูป">+</div>`;
+    c.innerHTML+=`<div class="shopname-row">
+      ${avatarHtml}
+      <span class="shopname-idx" style="font-family:var(--mono);font-size:11px;color:var(--text3);width:24px;text-align:right;flex-shrink:0;font-weight:600">${String(i+1).padStart(2,'0')}</span>
+      <input type="text" class="shopname-input" id="sn_${i}" value="${s}" placeholder="ชื่อช่อง ${i+1}" onfocus="isEditingNames=true" onblur="isEditingNames=false" style="flex:1">
+      <input type="file" id="ph_${i}" accept="image/*" style="display:none" onchange="handlePhotoUpload(${i},this)">
+    </div>`;});
   document.getElementById('totalRecords').textContent=records.length.toLocaleString();
   // แสดงจัดการผู้ใช้เฉพาะ Admin
   const mgmt = document.getElementById('userMgmtSection');
@@ -1248,22 +1312,18 @@ function styleSheet(ws){
 
 // ==================== AUTH ====================
 const DEFAULT_USERS = [
-  {username:"poppy",   password:"poppy1234",  displayName:"ป๊อปปี้",  role:"admin"},
-  {username:"staff01", password:"staff1234",  displayName:"ทีมงาน 1", role:"user"},
-  {username:"staff02", password:"staff2234",  displayName:"ทีมงาน 2", role:"user"},
-  {username:"staff03", password:"staff3234",  displayName:"ทีมงาน 3", role:"user"},
+  {username:"poppy",   password:"poppy5656",  displayName:"ป๊อปปี้", role:"admin"},
+  {username:"admin01", password:"bank5656",   displayName:"แบงค์",   role:"user"},
+  {username:"admin02", password:"kung5656",   displayName:"kung",    role:"user"},
 ];
 
 function getUsers(){
-  const saved = localStorage.getItem('pg_users');
-  if(saved){
-    try{ return JSON.parse(saved); }catch(e){}
-  }
-  // ครั้งแรกที่ใช้งาน — บันทึก DEFAULT_USERS ลง localStorage ทันที
-  localStorage.setItem('pg_users', JSON.stringify(DEFAULT_USERS));
+  // ถ้ามีการแก้ไขใน session นี้ ใช้ของที่แก้ไว้
+  if(window._runtimeUsers) return window._runtimeUsers;
+  // ไม่งั้นใช้ DEFAULT_USERS ตายตัวเสมอ ไม่หายเมื่ออัปเดตไฟล์
   return DEFAULT_USERS;
 }
-function saveUsersData(users){ localStorage.setItem('pg_users', JSON.stringify(users)); }
+function saveUsersData(users){ localStorage.setItem('pg_users', JSON.stringify(users)); window._runtimeUsers = users; }
 
 function togglePass(){
   const input = document.getElementById('loginPass');
