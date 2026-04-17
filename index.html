@@ -1764,9 +1764,15 @@ const DEFAULT_USERS = [
 ];
 
 function getUsers(){
+  // ใช้ DEFAULT_USERS ตายตัวเสมอ (ไม่ดึงจาก localStorage เพื่อป้องกัน override)
   if(window._runtimeUsers) return window._runtimeUsers;
   return DEFAULT_USERS;
 }
+
+// ล้าง pg_users เก่าออกจาก localStorage เพื่อป้องกัน conflict
+(function clearOldUsers(){
+  try{ localStorage.removeItem('pg_users'); }catch(e){}
+})();
 
 // โหลดชื่อช่องที่บันทึกไว้ใน localStorage (ถ้ามี)
 (function loadSavedShopNames(){
