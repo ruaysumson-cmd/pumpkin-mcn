@@ -347,13 +347,7 @@ tr:hover td{background:#f8f9fe}
         <input type="month" class="form-control" id="summaryMonth" style="width:auto" onchange="renderSummary()">
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryMonth()">เดือนนี้</button>
       </div>
-      <div id="customRangeRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
-        <input type="date" class="form-control" id="customFrom" style="width:auto" onchange="renderSummary()" max="today">
-        <span style="font-size:11px;color:var(--text3)">ถึง</span>
-        <input type="date" class="form-control" id="customTo" style="width:auto" onchange="renderSummary()" max="today">
-        <button class="btn btn-ghost"
-      </div>
+
       <div id="customRangeRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
         <input type="date" class="form-control" id="customFrom" style="width:auto">
@@ -504,7 +498,7 @@ tr:hover td{background:#f8f9fe}
       <div class="form-section" style="max-width:100%">
         <div class="card-header" style="margin-bottom:8px">
           <div>
-            <div class="form-title" style="margin:0">ตั้งชื่อช่อง 35 ช่อง</div>
+            <div class="form-title" style="margin:0">จัดการช่อง (<span id="shopCountLabel">28</span> ช่อง)</div>
             <p style="font-size:12px;color:var(--text3);margin-top:4px">แก้ไขชื่อให้ตรงกับช่องจริง — บันทึกแล้วซิงก์ไป Google Sheets ทันที</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -927,8 +921,7 @@ function init(){
   buildHourSelector();
   buildCmpHourSelector();
   // แสดง hour filter ถ้า period=hour
-  const hourRow=document.getElementById('hourFilterRow');
-  if(hourRow&&periodTab==='hour')hourRow.style.display='flex';
+  // hourFilterRow ถูกรวมเข้า summaryDateRow แล้ว
   document.getElementById('bDate').value=today();
   document.getElementById('histDate').value=today();
   document.getElementById('expDateFrom').value=today();
@@ -1152,10 +1145,10 @@ function renderSummary(){
   const bestI=totals.indexOf(Math.max(...totals));
   const selDate2 = getSelectedDate();
   document.getElementById('metricRow').innerHTML=`
-    <div class="metric-card" style="--ac:var(--accent)"><div class="metric-label">ยอดรวม ${periodTab==='hour'?(()=>{const h=getSelectedHour();return h!==null?`${String(h).padStart(2,'0')}:00-${String(h+1).padStart(2,'00')}:00`:selDate2})():periodTab==='day'?selDate2:periodTab==='7day'?'7 วัน':periodTab==='30day'?'30 วัน':periodTab==='60day'?'60 วัน':periodTab==='90day'?'90 วัน':'เดือน'}</div><div class="metric-value">${fmt(grand)}</div><div class="metric-sub">บาท (THB)</div></div>
+    <div class="metric-card" style="--ac:var(--accent)"><div class="metric-label">ยอดรวม ${periodTab==='hour'?(()=>{const h=getSelectedHour();return h!==null?`${String(h).padStart(2,'0')}:00-${String(h+1).padStart(2,'00')}:00`:selDate2})():periodTab==='today'||periodTab==='yesterday'?selDate2:periodTab==='7day'?'7 วัน':periodTab==='month'?'เดือน':periodTab==='custom'?'กำหนดเอง':''}</div><div class="metric-value">${fmt(grand)}</div><div class="metric-sub">บาท (THB)</div></div>
     <div class="metric-card" style="--ac:var(--accent2)"><div class="metric-label">ช่องทั้งหมด</div><div class="metric-value">28</div><div class="metric-sub">ช่อง</div></div>
     <div class="metric-card" style="--ac:#7c3aed"><div class="metric-label">ช่วงสูงสุด</div><div class="metric-value" style="font-size:18px">${labels[bestI]||'-'}</div><div class="metric-sub">${fmt(totals[bestI]||0)} บาท</div></div>
-    <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='day'?'วัน':'เดือน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
+    <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='month'?'เดือน':'วัน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
   const pLabels = periodTab==='hour' ? labels : labels.map(l=>l.slice(5));
   if(summaryChart)summaryChart.destroy();
   summaryChart=new Chart(document.getElementById('summaryChart'),{
@@ -1307,12 +1300,16 @@ async function saveEntry(){
   }
 }
 
-function toggleBatch(){const a=document.getElementById('batchArea');a.style.display=a.style.display==='none'?'block':'none';}
+function toggleBatch(){
+  const tab=document.getElementById('saveTab-batch');
+  if(tab) tab.style.display=tab.style.display==='none'?'block':'none';
+}
 function clearBatch(){shopNames.forEach((_,i)=>{const el=document.getElementById('bi_'+i);if(el)el.value='';})}
 
 async function saveBatch(){
   const date=document.getElementById('bDate').value;
-  const hour=parseInt(document.getElementById('bHour').value);
+  const hourStart=parseInt(document.getElementById('bHourStart').value);
+  const hourEnd=parseInt(document.getElementById('bHourEnd').value);
   if(!date){toast('กรุณาเลือกวันที่','error');return;}
   const toSave=[];
   shopNames.forEach((_,i)=>{
@@ -1407,47 +1404,70 @@ function buildCmpFilter(){
   else sel.value=labels[labels.length-1];
 }
 function renderCompare(){
-  const label=document.getElementById('cmpFilter').value;if(!label)return;
-  const key=cmpTab==='hour'?parseInt(label):label;
-  const cmpDateVal=getCmpDate();
-  const vals=shopNames.map((_,i)=>{
+  // สำหรับ today/yesterday/7day/month ไม่ต้องพึ่ง cmpFilter
+  const noFilterPeriods = ['today','yesterday','7day','month'];
+  let labels = [];
+  const cmpDateVal = getCmpDate();
+
+  if(noFilterPeriods.includes(cmpTab)){
+    labels = getLabels(cmpTab, cmpDateVal);
+  } else if(cmpTab === 'hour'){
+    const h = parseInt(document.getElementById('cmpHour')?.value||nowHour());
+    labels = [String(h).padStart(2,'0')+':00'];
+  } else if(cmpTab === 'custom'){
+    labels = getCmpCustomRange();
+  } else {
+    const filterEl = document.getElementById('cmpFilter');
+    const label = filterEl ? filterEl.value : '';
+    if(!label) return;
+    labels = [label];
+  }
+
+  const vals = shopNames.map((_,i)=>{
     if(cmpTab==='hour'){
       const h = parseInt(document.getElementById('cmpHour')?.value||nowHour());
       return sumFor(i,'hour',String(h),cmpDateVal);
     }
-    return sumFor(i,cmpTab,key,null);
+    // รวมยอดทุก label
+    return labels.reduce((sum,l)=>sum+sumFor(i,cmpTab,l,null),0);
   });
-  const sorted=vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
-  const maxV=Math.max(...vals)||1;const top10=sorted.slice(0,10);
-  if(compareChart)compareChart.destroy();
-  compareChart=new Chart(document.getElementById('compareChart'),{
+
+  const sorted = vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
+  const maxV = Math.max(...vals)||1;
+  const top10 = sorted.slice(0,10);
+
+  if(compareChart) compareChart.destroy();
+  compareChart = new Chart(document.getElementById('compareChart'),{
     type:'bar',
     data:{labels:top10.map(x=>shopNames[x.i]),datasets:[{label:'ยอดขาย',data:top10.map(x=>x.v),backgroundColor:top10.map(x=>CHART_COLORS[x.i]+'33'),borderColor:top10.map(x=>CHART_COLORS[x.i]),borderWidth:1.5,borderRadius:5}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
       x:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},
       y:{ticks:{color:'#5a5f7a',font:{size:11,family:'IBM Plex Sans Thai'}},grid:{display:false},border:{color:'#e2e4ec'}}}}
   });
-  const list=document.getElementById('rankList');list.innerHTML='';
+
+  const list = document.getElementById('rankList'); list.innerHTML='';
   const rankPhotos = getShopPhotos();
   sorted.forEach(({v,i},rank)=>{
-    const pct=Math.round(v/maxV*100);
-    const rc=rank===0?'gold':rank===1?'silver':rank===2?'bronze':'';
+    const pct = Math.round(v/maxV*100);
+    const rc = rank===0?'gold':rank===1?'silver':rank===2?'bronze':'';
     const photo = rankPhotos[i];
     const avatarHtml = photo
       ? `<img src="${photo}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2.5px solid ${CHART_COLORS[i]};flex-shrink:0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.12)" onclick="uploadShopPhotoFromRank(${i})" title="เปลี่ยนรูป">`
-      : `<div style="width:52px;height:52px;border-radius:50%;background:var(--goldlt);border:2.5px dashed ${CHART_COLORS[i]};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${CHART_COLORS[i]};flex-shrink:0;cursor:pointer" onclick="uploadShopPhotoFromRank(${i})" title="เพิ่มรูป">${shopNames[i].charAt(0).toUpperCase()}</div>`;
-    list.innerHTML+=`<div class="rank-item">
-      <div class="rank-num ${rc}">${rank+1}</div>
+      : `<div style="width:52px;height:52px;border-radius:50%;background:var(--goldlt);border:2.5px dashed ${CHART_COLORS[i]};display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;flex-shrink:0" onclick="uploadShopPhotoFromRank(${i})" title="เพิ่มรูป">🎭</div>`;
+    list.innerHTML+=`<div class="rank-item${rc?' rank-'+rc:''}">
+      <div class="rank-num">${rank+1}</div>
       ${avatarHtml}
-      <input type="file" id="rank_ph_${i}" accept="image/*" style="display:none" onchange="handleRankPhotoUpload(${i},this)">
-      <div class="rank-name">${shopNames[i]}</div>
-      <div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${pct}%;background:${CHART_COLORS[i]}"></div></div></div>
-      <div class="rank-val">${fmtBig(v)} ฿</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${shopNames[i]}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--mono)">${fmt(v)} ฿</div>
+        <div style="height:4px;background:var(--bg4);border-radius:2px;margin-top:4px"><div style="height:100%;width:${pct}%;background:${CHART_COLORS[i]};border-radius:2px"></div></div>
+      </div>
+      <div style="font-size:16px;font-weight:700;color:${CHART_COLORS[i]};font-family:var(--mono);min-width:70px;text-align:right">${fmtBig(v)}</div>
     </div>`;
   });
 }
 
-// ==================== HISTORY ====================
+
 function renderHistory(){
   const sf=document.getElementById('histShop').value;const df=document.getElementById('histDate').value;
   let filtered=records.filter(r=>{if(sf!=='all'&&r.shop!==parseInt(sf))return false;if(df&&r.date!==df)return false;return true;}).sort((a,b)=>b.date.localeCompare(a.date)||b.hour-a.hour);
@@ -2238,6 +2258,11 @@ function setSaveTab(btn, tab){
 }
 
 let retroRowCount = 0;
+function removeRetroRow(btn){
+  const row = btn.closest('[id^="retro_row"]');
+  if(row) row.remove();
+}
+
 function addRetroRow(){
   const container = document.getElementById('retroTimeRows');
   const idx = retroRowCount++;
@@ -2264,12 +2289,74 @@ function addRetroRow(){
     '<span style="font-size:12px;color:var(--text3)">ถึง</span>'+
     '<select class="form-control" id="retro_end_'+idx+'" style="width:110px">'+hourEndOpts+'</select>'+
     '<input type="number" class="form-control" id="retro_amount_'+idx+'" placeholder="ยอดขาย (฿)" min="0" value="0" style="width:130px">'+
-    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="this.closest(&quot;[id^=retro_row]&quot;).remove()">ลบ</button>';
+    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeRetroRow(this)">ลบ</button>';
   container.appendChild(row);
   setTimeout(()=>{ const el=document.getElementById('retro_amount_'+idx); if(el){el.select();} },50);
 }
 
 
+
+function saveRetroEntry(){
+  const shop=parseInt(document.getElementById('retroShop')?.value);
+  const date=document.getElementById('retroDate')?.value;
+  if(!date){toast('กรุณาเลือกวันที่ค่ะ','error');return;}
+  const rows=document.getElementById('retroTimeRows')?.children;
+  if(!rows||rows.length===0){toast('กรุณาเพิ่มช่วงเวลาอย่างน้อย 1 ช่วงค่ะ','error');return;}
+  const entries=[];
+  for(const row of rows){
+    const id=row.id.replace('retro_row_','');
+    const hourStart=parseInt(document.getElementById('retro_start_'+id)?.value||0);
+    const hourEnd=parseInt(document.getElementById('retro_end_'+id)?.value||hourStart+1);
+    const amount=parseFloat(document.getElementById('retro_amount_'+id)?.value||0);
+    if(amount<0){toast('ยอดขายต้องไม่ติดลบนะคะ','error');return;}
+    if(hourEnd<=hourStart){toast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้นค่ะ','error');return;}
+    const staff=currentSession()?.displayName||'Web User';
+    entries.push({shop,date,hourStart,hourEnd,timeRange:fmtTimeRange(hourStart,hourEnd),amount,staff});
+  }
+  const btn=document.getElementById('retroSaveBtn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ กำลังบันทึก...';}
+  setSyncStatus('syncing');
+  Promise.all(entries.map(e=>apiCall('saveRecord',e))).then(results=>{
+    let saved=0,dupes=0;
+    results.forEach((res,i)=>{
+      if(res.action==='duplicate'){dupes++;return;}
+      const r=entries[i];
+      const idx=records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hourStart===r.hourStart&&x.hourEnd===r.hourEnd);
+      if(idx>=0)records[idx].amount=r.amount;else records.push(r);
+      saved++;
+    });
+    setSyncStatus('online');setLastSync();
+    document.getElementById('retroTimeRows').innerHTML='';
+    retroRowCount=0;addRetroRow();
+    let msg='✅ บันทึกย้อนหลัง '+saved+' ช่วงสำเร็จค่ะ';
+    if(dupes>0)msg+=' (ซ้ำ '+dupes+' ช่วง)';
+    toast(msg);renderSummary();
+  }).catch(()=>{
+    setSyncStatus('offline');toast('❌ บันทึกไม่สำเร็จ กรุณาลองใหม่','error');
+  }).finally(()=>{if(btn){btn.disabled=false;btn.textContent='💾 บันทึกย้อนหลัง';}});
+}
+
+function resetSummaryMonth(){
+  const el=document.getElementById('summaryMonth');
+  if(el){const d=new Date();el.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+  renderSummary();
+}
+
+function navigate(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const pg=document.getElementById('page-'+page);
+  if(pg) pg.classList.add('active');
+  const topTitle=document.getElementById('pageTitle');
+  const titles={summary:'ภาพรวมยอดขาย',entry:'บันทึกยอดขาย',compare:'เปรียบเทียบช่อง',history:'ประวัติการขาย',settings:'ตั้งค่าช่อง'};
+  if(topTitle) topTitle.textContent=titles[page]||page;
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.dataset.page===page) n.classList.add('active');
+  });
+  if(page==='settings') renderSettings();
+  if(page==='history') renderHistory();
+  if(page==='entry') buildBatchInputs();
+}
 
 // ==================== STARTUP ====================
 document.addEventListener('DOMContentLoaded', function(){
