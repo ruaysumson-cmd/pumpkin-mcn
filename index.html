@@ -325,7 +325,7 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab" onclick="setPeriod(this,'today')">วันนี้</button>
         <button class="ptab" onclick="setPeriod(this,'yesterday')">เมื่อวาน</button>
         <button class="ptab" onclick="setPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
-        <button class="ptab" onclick="setPeriod(this,'month')">เดือนนี้</button>
+        <button class="ptab" onclick="setPeriod(this,'month')">เดือน</button>
         <button class="ptab" onclick="setPeriod(this,'custom')">กำหนดเอง</button>
       </div>
       <div id="summaryDateRow" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
@@ -337,6 +337,12 @@ tr:hover td{background:#f8f9fe}
         </button>
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryDate()">วันนี้</button>
         <span id="summaryDateLabel" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
+      </div>
+      <!-- Month picker row -->
+      <div id="summaryMonthRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">เดือน:</span>
+        <input type="month" class="form-control" id="summaryMonth" style="width:auto" onchange="renderSummary()">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryMonth()">เดือนนี้</button>
       </div>
       <div id="customRangeRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
@@ -357,11 +363,7 @@ tr:hover td{background:#f8f9fe}
       </div>
       <div id="hourFilterRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
-        <select class="form-control" id="summaryHour" style="width:auto"></select>
-        <button class="btn btn-primary" onclick="renderSummary()" style="padding:8px 18px">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
-          ค้นหา
-        </button>
+        <select class="form-control" id="summaryHour" style="width:auto" onchange="renderSummary()"></select>
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryHour()">ชั่วโมงปัจจุบัน</button>
       </div>
       <div class="chart-card">
@@ -421,25 +423,23 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab" onclick="setCmpPeriod(this,'today')">วันนี้</button>
         <button class="ptab" onclick="setCmpPeriod(this,'yesterday')">เมื่อวาน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
-        <button class="ptab" onclick="setCmpPeriod(this,'month')">เดือนนี้</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'month')">เดือน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'custom')">กำหนดเอง</button>
       </div>
-      <div id="cmpDateRow" style="display:none;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <!-- Hour: เลือกวันที่ได้ -->
+      <div id="cmpDateRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="cmpDate" style="width:auto" onchange="buildCmpFilter();renderCompare()">
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpDate()">วันนี้</button>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">|</span>
-        <select class="form-control" id="cmpFilter" onchange="renderCompare()" style="width:auto"></select>
       </div>
-      <div id="cmpHourRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
-        <select class="form-control" id="cmpHour" style="width:auto"></select>
-        <button class="btn btn-primary" onclick="renderCompare()" style="padding:8px 18px">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
-          ค้นหา
-        </button>
-        <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpHour()">ชั่วโมงปัจจุบัน</button>
+      <!-- Month: เลือกเดือนได้ -->
+      <div id="cmpMonthRow" style="display:none;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">เดือน:</span>
+        <input type="month" class="form-control" id="cmpMonth" style="width:auto" onchange="renderCompare()">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpMonth()">เดือนนี้</button>
       </div>
+      <select class="form-control" id="cmpFilter" style="display:none"></select>
+      <select class="form-control" id="cmpHour" style="display:none"></select>
       <div id="cmpCustomRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
         <input type="date" class="form-control" id="cmpCustomFrom" style="width:auto" onchange="renderCompare()">
@@ -1364,9 +1364,12 @@ function renderCompare(){
   const label=document.getElementById('cmpFilter').value;if(!label)return;
   const key=cmpTab==='hour'?parseInt(label):label;
   const cmpDateVal=getCmpDate();
-  const cmpH = getCmpSelectedHour ? getCmpSelectedHour() : nowHour();
   const vals=shopNames.map((_,i)=>{
-    if(cmpTab==='hour') return sumFor(i,'hour',String(cmpH),cmpDateVal);
+    if(cmpTab==='hour'){
+      // sum ยอดทุกชั่วโมงของวันนั้น
+      return records.filter(r=>r.shop===i && String(r.date).slice(0,10)===cmpDateVal)
+        .reduce((a,b)=>a+b.amount,0);
+    }
     return sumFor(i,cmpTab,key,null);
   });
   const sorted=vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
