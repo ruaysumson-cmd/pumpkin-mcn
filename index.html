@@ -1878,6 +1878,43 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 });
 
+
+// ==================== MISSING HELPERS ====================
+function buildHourSelector(){
+  const sel=document.getElementById('summaryHour');
+  if(!sel||sel.options.length>0) return;
+  for(let i=0;i<24;i++){
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent=`${String(i).padStart(2,'0')}:00 - ${String(i+1).padStart(2,'00')}:00`;
+    sel.appendChild(o);
+  }
+  sel.value=String(nowHour());
+}
+
+function getSelectedHour(){
+  const el=document.getElementById('summaryHour');
+  return el&&el.value!==''?parseInt(el.value):null;
+}
+
+function resetSummaryHour(){
+  const el=document.getElementById('summaryHour');
+  if(el) el.value=String(nowHour());
+  renderSummary();
+}
+
+function getCustomDaysCmp(){
+  const from=document.getElementById('cmpCustomFrom')?.value;
+  const to=document.getElementById('cmpCustomTo')?.value;
+  if(!from||!to) return [today()];
+  const days=[];
+  const start=new Date(from), end=new Date(to);
+  for(let dt=new Date(start);dt<=end;dt.setDate(dt.getDate()+1)){
+    days.push(dt.toISOString().slice(0,10));
+  }
+  return days.slice(0,366);
+}
+
 // Start
 if(checkSession()){ init(); }
 else { document.getElementById('loginUser').focus(); }
