@@ -2073,37 +2073,41 @@ let multiTimeList = []; // [{hourStart, hourEnd, amount}]
 function addTimeRow(){
   const container = document.getElementById('multiTimeRows');
   const idx = multiTimeList.length;
-  
-  // ดึงค่าเวลาปัจจุบันเป็น default
-  const lastEnd = multiTimeList.length > 0 
-    ? multiTimeList[multiTimeList.length-1].hourEnd 
-    : parseInt(document.getElementById('inHourEnd').value)||nowHour()+1;
-  
+
+  // auto เลื่อนต่อจากเวลาสิ้นสุดของแถวก่อน
+  let defStart = parseInt(document.getElementById('inHourEnd')?.value||nowHour()+1);
+  if(container.children.length > 0){
+    const rows = container.querySelectorAll('[id^="mtr_"]');
+    const lastRow = rows[rows.length-1];
+    if(lastRow){
+      const lastId = lastRow.id.replace('mtr_','');
+      const lastEnd = parseInt(document.getElementById('mtr_end_'+lastId)?.value);
+      if(!isNaN(lastEnd)) defStart = Math.min(lastEnd,23);
+    }
+  }
+  const defEnd = Math.min(defStart+1,24);
+
+  const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}" ${i===defStart?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
+  const hourEndOpts = Array.from({length:24},(_,i)=>`<option value="${i+1}" ${(i+1)===defEnd?'selected':''}>${String(i+1).padStart(2,'00')}:00</option>`).join('');
+
   const row = document.createElement('div');
-  row.id = `mtr_${idx}`;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap';
-  
-  // สร้าง options เวลา
-  const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}" ${i===lastEnd?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
-  const hourEndOpts = Array.from({length:24},(_,i)=>`<option value="${i+1}" ${i+1===lastEnd+1?'selected':''}>${String(i+1).padStart(2,'00')}:00</option>`).join('');
-  
-  row.innerHTML = `
-    <span style="font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0">ช่วงที่ ${idx+1}</span>
-    <select class="form-control" id="mtr_start_${idx}" style="width:100px" onchange="updateMultiRow(${idx})">
-      ${hourOpts}
-    </select>
-    <span style="font-size:12px;color:var(--text3)">ถึง</span>
-    <select class="form-control" id="mtr_end_${idx}" style="width:100px">
-      ${hourEndOpts}
-    </select>
-    <input type="number" class="form-control" id="mtr_amount_${idx}" placeholder="ยอดขาย" min="0" style="width:120px">
-    <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeTimeRow(${idx})">ลบ</button>
-  `;
-  
+  row.id = 'mtr_'+idx;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.7);border:1px solid rgba(255,200,140,0.4);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap';
+  row.innerHTML =
+    '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0">ช่วงที่ '+(container.children.length+1)+'</span>'+
+    '<select class="form-control" id="mtr_start_'+idx+'" style="width:110px" onchange="updateMultiRow('+idx+')">'+hourOpts+'</select>'+
+    '<span style="font-size:12px;color:var(--text3)">ถึง</span>'+
+    '<select class="form-control" id="mtr_end_'+idx+'" style="width:110px">'+hourEndOpts+'</select>'+
+    '<input type="number" class="form-control" id="mtr_amount_'+idx+'" placeholder="ยอดขาย" min="0" value="0" style="width:120px">'+
+    '<input type="file" id="ph_file_'+idx+'" accept="image/*" style="display:none">'+
+    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeTimeRow('+idx+')">ลบ</button>';
+
   container.appendChild(row);
-  multiTimeList.push({hourStart: lastEnd, hourEnd: lastEnd+1, amount: 0});
+  multiTimeList.push({hourStart:defStart, hourEnd:defEnd, amount:0});
   updateMultiSaveBtn();
+  setTimeout(()=>{ const el=document.getElementById('mtr_amount_'+idx); if(el){el.select();} },50);
 }
+
 
 function removeTimeRow(idx){
   const row = document.getElementById(`mtr_${idx}`);
@@ -2154,7 +2158,7 @@ async function saveMultiEntry(){
     const hourStart = parseInt(document.getElementById(`mtr_start_${rowIdx}`)?.value||0);
     const hourEnd = parseInt(document.getElementById(`mtr_end_${rowIdx}`)?.value||hourStart+1);
     const amount = parseFloat(document.getElementById(`mtr_amount_${rowIdx}`)?.value||0);
-    if(amount <= 0){ toast(`ช่วงที่ ${i+1}: กรุณากรอกยอดขายค่ะ`,'error'); return; }
+    if(amount < 0){ toast(`ช่วงที่ ${i+1}: ยอดขายต้องไม่ติดลบนะคะ`,'error'); return; }
     if(hourEnd <= hourStart){ toast(`ช่วงที่ ${i+1}: เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น`,'error'); return; }
     const timeRange = fmtTimeRange(hourStart, hourEnd);
     const staff = currentSession()?.displayName || 'Web User';
@@ -2242,76 +2246,30 @@ let retroRowCount = 0;
 function addRetroRow(){
   const container = document.getElementById('retroTimeRows');
   const idx = retroRowCount++;
-  const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join('');
-  const hourEndOpts = Array.from({length:24},(_,i)=>`<option value="${i+1}">${String(i+1).padStart(2,'00')}:00</option>`).join('');
+
+  // auto เลื่อนเวลาต่อจากแถวก่อน
+  let defStart = 0;
+  if(container.children.length > 0){
+    const prevRow = container.children[container.children.length-1];
+    const prevId = prevRow.id.replace('retro_row_','');
+    const prevEnd = parseInt(document.getElementById('retro_end_'+prevId)?.value||1);
+    defStart = Math.min(prevEnd, 23);
+  }
+  const defEnd = Math.min(defStart+1, 24);
+
+  const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}" ${i===defStart?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
+  const hourEndOpts = Array.from({length:24},(_,i)=>`<option value="${i+1}" ${(i+1)===defEnd?'selected':''}>${String(i+1).padStart(2,'00')}:00</option>`).join('');
+
   const row = document.createElement('div');
-  row.id = `retro_row_${idx}`;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap';
-  row.innerHTML = `
-    <span style="font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0">ช่วงที่ ${container.children.length+1}</span>
-    <select class="form-control" id="retro_start_${idx}" style="width:100px">${hourOpts}</select>
-    <span style="font-size:12px;color:var(--text3)">ถึง</span>
-    <select class="form-control" id="retro_end_${idx}" style="width:100px">${hourEndOpts}</select>
-    <input type="number" class="form-control" id="retro_amount_${idx}" placeholder="ยอดขาย (฿)" min="0" style="width:130px">
-    <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="this.closest('[id^=retro_row]').remove()">ลบ</button>
-  `;
+  row.id = 'retro_row_'+idx;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.7);border:1px solid rgba(255,200,140,0.4);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap';
+  row.innerHTML =
+    '<span style="font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0">ช่วงที่ '+(container.children.length+1)+'</span>'+
+    '<select class="form-control" id="retro_start_'+idx+'" style="width:110px">'+hourOpts+'</select>'+
+    '<span style="font-size:12px;color:var(--text3)">ถึง</span>'+
+    '<select class="form-control" id="retro_end_'+idx+'" style="width:110px">'+hourEndOpts+'</select>'+
+    '<input type="number" class="form-control" id="retro_amount_'+idx+'" placeholder="ยอดขาย (฿)" min="0" value="0" style="width:130px">'+
+    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="this.closest('div[id]').remove()">ลบ</button>';
   container.appendChild(row);
+  setTimeout(()=>{ const el=document.getElementById('retro_amount_'+idx); if(el){el.select();} },50);
 }
-
-async function saveRetroEntry(){
-  const shop = parseInt(document.getElementById('retroShop')?.value);
-  const date = document.getElementById('retroDate')?.value;
-  if(!date){ toast('กรุณาเลือกวันที่','error'); return; }
-
-  const rows = document.getElementById('retroTimeRows').children;
-  if(!rows||rows.length===0){ toast('กรุณาเพิ่มช่วงเวลาอย่างน้อย 1 ช่วง','error'); return; }
-
-  const entries = [];
-  for(const row of rows){
-    const id = row.id.replace('retro_row_','');
-    const hourStart = parseInt(document.getElementById(`retro_start_${id}`)?.value||0);
-    const hourEnd   = parseInt(document.getElementById(`retro_end_${id}`)?.value||hourStart+1);
-    const amount    = parseFloat(document.getElementById(`retro_amount_${id}`)?.value||0);
-    if(amount<=0){ toast('กรุณากรอกยอดขายทุกช่วงเวลาค่ะ','error'); return; }
-    if(hourEnd<=hourStart){ toast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้นค่ะ','error'); return; }
-    const staff = currentSession()?.displayName||'Web User';
-    entries.push({shop, date, hourStart, hourEnd, timeRange:fmtTimeRange(hourStart,hourEnd), amount, staff});
-  }
-
-  const btn = document.getElementById('retroSaveBtn');
-  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
-  setSyncStatus('syncing');
-
-  try{
-    const results = await Promise.all(entries.map(e=>apiCall('saveRecord',e)));
-    let saved=0, dupes=0;
-    results.forEach((res,i)=>{
-      if(res.action==='duplicate'){dupes++;return;}
-      const r=entries[i];
-      const idx=records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hourStart===r.hourStart&&x.hourEnd===r.hourEnd);
-      if(idx>=0) records[idx].amount=r.amount; else records.push(r);
-      saved++;
-    });
-    setSyncStatus('online'); setLastSync();
-    document.getElementById('retroTimeRows').innerHTML='';
-    retroRowCount=0;
-    addRetroRow();
-    let msg=`✅ บันทึกย้อนหลัง ${saved} ช่วงเวลาสำเร็จค่ะ`;
-    if(dupes>0) msg+=` (ซ้ำ ${dupes} ช่วง)`;
-    toast(msg);
-    renderSummary();
-  }catch(e){
-    setSyncStatus('offline');
-    toast('❌ บันทึกไม่สำเร็จ กรุณาลองใหม่','error');
-  }finally{
-    btn.disabled=false; btn.textContent='💾 บันทึกย้อนหลัง';
-  }
-}
-
-// Start
-if(checkSession()){ init(); }
-else { document.getElementById('loginUser').focus(); }
-
-</script>
-</body>
-</html>
