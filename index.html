@@ -811,7 +811,16 @@ async function loadAll(silent=false){
     ]);
     if(recRes.records) records = recRes.records.map(r=>({
       shop: parseInt(r.shop),
-      date: String(r.date).slice(0,10),
+      date: (()=>{
+        const d = String(r.date);
+        if(d.includes('T')){
+          // Google Sheets ส่งมาเป็น UTC — แปลงเป็น Bangkok (UTC+7)
+          const dt = new Date(d);
+          dt.setTime(dt.getTime() + 7*60*60*1000);
+          return dt.toISOString().slice(0,10);
+        }
+        return d.slice(0,10);
+      })(),
       hourStart: r.hourStart!==undefined ? parseInt(r.hourStart) : parseInt(r.hour)||0,
       hourEnd: r.hourEnd!==undefined ? parseInt(r.hourEnd) : (parseInt(r.hour)||0)+1,
       timeRange: r.timeRange || fmtTimeRange(parseInt(r.hourStart||r.hour)||0,(parseInt(r.hourEnd||r.hour)||0)+1),
