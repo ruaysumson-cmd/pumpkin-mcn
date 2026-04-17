@@ -208,7 +208,7 @@ tr:hover td{background:#f8f9fe}
 <body>
 
 <!-- LOADING -->
-<div class="loading-overlay" id="loadingOverlay">
+<div class="loading-overlay hidden" id="loadingOverlay">
   <div class="spinner"></div>
   <div class="loading-text">กำลังโหลดข้อมูลจาก Google Sheets...</div>
 </div>
@@ -739,14 +739,25 @@ function setLastSync(){
 async function apiCall(action, body={}){
   const payload={action,...body};
   try {
+    // Google Apps Script ต้องใช้ redirect:'follow' เพื่อรองรับ redirect
     const res = await fetch(API_URL, {
       method:'POST',
       body: JSON.stringify(payload),
-      headers:{'Content-Type':'text/plain'}
+      headers:{'Content-Type':'text/plain'},
+      redirect:'follow',
+      mode:'cors'
     });
     const data = await res.json();
     return data;
   } catch(e) {
+    // Fallback: ใช้ GET สำหรับ getAll
+    if(action==='getAll'){
+      const res2 = await fetch(`${API_URL}?action=getAll`, {
+        method:'GET',
+        redirect:'follow'
+      });
+      return await res2.json();
+    }
     console.error('API Error:', e);
     throw e;
   }
@@ -754,6 +765,7 @@ async function apiCall(action, body={}){
 
 async function loadAll(){
   setSyncStatus('syncing');
+  document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('syncBanner').classList.add('show');
   try {
     const [recRes, nameRes] = await Promise.all([
