@@ -322,17 +322,29 @@ tr:hover td{background:#f8f9fe}
       <div class="metric-grid" id="metricRow"></div>
       <div class="period-tabs">
         <button class="ptab active" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
-        <button class="ptab" onclick="setPeriod(this,'day')">1 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'today')">วันนี้</button>
+        <button class="ptab" onclick="setPeriod(this,'yesterday')">เมื่อวาน</button>
         <button class="ptab" onclick="setPeriod(this,'7day')">7 วัน</button>
-        <button class="ptab" onclick="setPeriod(this,'30day')">30 วัน</button>
-        <button class="ptab" onclick="setPeriod(this,'60day')">60 วัน</button>
-        <button class="ptab" onclick="setPeriod(this,'90day')">90 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'month')">เดือนนี้</button>
+        <button class="ptab" onclick="setPeriod(this,'custom')">กำหนดเอง</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="summaryDate" style="width:auto" onchange="renderSummary()">
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryDate()">วันนี้</button>
         <span id="summaryDateLabel" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></span>
+      </div>
+      <div id="customRangeRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
+        <input type="date" class="form-control" id="customFrom" style="width:auto" onchange="renderSummary()" max="today">
+        <span style="font-size:11px;color:var(--text3)">ถึง</span>
+        <input type="date" class="form-control" id="customTo" style="width:auto" onchange="renderSummary()" max="today">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="setCustomYear()">ย้อนหลัง 1 ปี</button>
+      </div>
+      <div id="hourFilterRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
+        <select class="form-control" id="summaryHour" style="width:auto" onchange="renderSummary()"></select>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetSummaryHour()">ชั่วโมงปัจจุบัน</button>
       </div>
       <div class="chart-card">
         <div class="card-header"><span class="card-title">ยอดขายรวมทุกช่อง</span></div>
@@ -380,13 +392,20 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab" onclick="setCmpPeriod(this,'day')">รายวัน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'month')">รายเดือน</button>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="cmpDate" style="width:auto" onchange="buildCmpFilter();renderCompare()">
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpDate()">วันนี้</button>
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">|</span>
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
         <select class="form-control" id="cmpFilter" onchange="renderCompare()" style="width:auto"></select>
+      </div>
+      <div id="cmpCustomRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
+        <input type="date" class="form-control" id="cmpCustomFrom" style="width:auto" onchange="renderCompare()">
+        <span style="font-size:11px;color:var(--text3)">ถึง</span>
+        <input type="date" class="form-control" id="cmpCustomTo" style="width:auto" onchange="renderCompare()">
+        <button class="btn btn-ghost" style="font-size:12px" onclick="setCmpCustomYear()">ย้อนหลัง 1 ปี</button>
       </div>
       <div class="chart-card">
         <div class="card-header"><span class="card-title">Top 10 ช่อง</span></div>
@@ -831,6 +850,10 @@ function init(){
   document.getElementById('inDate').value=today();
   const summaryDateEl=document.getElementById('summaryDate');
   if(summaryDateEl)summaryDateEl.value=today();
+  buildHourSelector();
+  // แสดง hour filter ถ้า period=hour
+  const hourRow=document.getElementById('hourFilterRow');
+  if(hourRow&&periodTab==='hour')hourRow.style.display='flex';
   document.getElementById('bDate').value=today();
   document.getElementById('histDate').value=today();
   document.getElementById('expDateFrom').value=today();
@@ -872,23 +895,82 @@ function getDaysBack(anchorDate, numDays){
   return days;
 }
 
+function getYesterday(){
+  const d = new Date(); d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+function getMonthDays(){
+  const d = new Date();
+  const year = d.getFullYear(), month = d.getMonth();
+  const days = [];
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  for(let i=1; i<=daysInMonth; i++){
+    days.push(`${year}-${String(month+1).padStart(2,'0')}-${String(i).padStart(2,'0')}`);
+  }
+  return days;
+}
+
+function getCustomRange(){
+  const from = document.getElementById('customFrom')?.value;
+  const to = document.getElementById('customTo')?.value;
+  if(!from||!to) return [today()];
+  const days=[], start=new Date(from), end=new Date(to);
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    days.push(d.toISOString().slice(0,10));
+  }
+  return days;
+}
+
+function getCmpCustomRange(){
+  const from = document.getElementById('cmpCustomFrom')?.value;
+  const to = document.getElementById('cmpCustomTo')?.value;
+  if(!from||!to) return [today()];
+  const days=[], start=new Date(from), end=new Date(to);
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    days.push(d.toISOString().slice(0,10));
+  }
+  return days;
+}
+
+function setCustomYear(){
+  const to = today();
+  const from = new Date(); from.setFullYear(from.getFullYear()-1);
+  const fromStr = from.toISOString().slice(0,10);
+  const f=document.getElementById('customFrom'), t=document.getElementById('customTo');
+  if(f)f.value=fromStr; if(t)t.value=to;
+  renderSummary();
+}
+
+function setCmpCustomYear(){
+  const to = today();
+  const from = new Date(); from.setFullYear(from.getFullYear()-1);
+  const fromStr = from.toISOString().slice(0,10);
+  const f=document.getElementById('cmpCustomFrom'), t=document.getElementById('cmpCustomTo');
+  if(f)f.value=fromStr; if(t)t.value=to;
+  renderCompare();
+}
+
 function getLabels(period, anchorDate){
   const sel = anchorDate || getSelectedDate();
   if(period==='hour') return Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
-  if(period==='day') return [sel]; // 1 วัน
-  if(period==='7day')  return getDaysBack(sel, 7);
+  if(period==='today') return [today()];
+  if(period==='yesterday') return [getYesterday()];
+  if(period==='7day') return getDaysBack(sel, 7);
+  if(period==='month') return getMonthDays();
+  if(period==='custom') return getCustomRange();
+  if(period==='cmpCustom') return getCmpCustomRange();
+  // legacy
+  if(period==='day') return [sel];
   if(period==='30day') return getDaysBack(sel, 30);
   if(period==='60day') return getDaysBack(sel, 60);
   if(period==='90day') return getDaysBack(sel, 90);
-  // legacy
   if(period==='week'){
-    const weeks=[];
-    const d=new Date();
+    const weeks=[];const d=new Date();
     for(let i=7;i>=0;i--){const dd=new Date(d);dd.setDate(d.getDate()-(i*7));weeks.push(getWeekStart(dd.toISOString().slice(0,10)));}
     return [...new Set(weeks)];
   }
-  const months=[];
-  const d=new Date();
+  const months=[];const d=new Date();
   for(let i=5;i>=0;i--){const mm=new Date(d.getFullYear(),d.getMonth()-i,1);months.push(`${mm.getFullYear()}-${String(mm.getMonth()+1).padStart(2,'0')}`);}
   return months;
 }
@@ -910,27 +992,46 @@ function sumFor(shopIdx, period, key, dateOverride){
     if(shopIdx!==null && r.shop!==shopIdx) return false;
     const rDate = String(r.date).slice(0,10);
     if(period==='hour') return rDate===baseDate && parseInt(r.hourStart)===parseInt(key);
-    if(period==='day')   return rDate===key;
-    if(period==='7day')  return rDate===key;
-    if(period==='30day') return rDate===key;
-    if(period==='60day') return rDate===key;
-    if(period==='90day') return rDate===key;
-    if(period==='week'){ return getWeekStart(rDate)===key; }
-    if(period==='month') return rDate.slice(0,7)===key;
+    if(period==='today')     return rDate===key;
+    if(period==='yesterday') return rDate===key;
+    if(period==='7day')      return rDate===key;
+    if(period==='month')     return rDate===key;
+    if(period==='custom')    return rDate===key;
+    if(period==='cmpCustom') return rDate===key;
+    if(period==='day')       return rDate===key;
+    if(period==='30day')     return rDate===key;
+    if(period==='60day')     return rDate===key;
+    if(period==='90day')     return rDate===key;
+    if(period==='week')      return getWeekStart(rDate)===key;
     return false;
   }).reduce((a,b)=>a+b.amount,0);
 }
 
-function setPeriod(btn,p){btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');periodTab=p;renderSummary();}
+function setPeriod(btn,p){
+  btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  periodTab=p;
+  const hourRow = document.getElementById('hourFilterRow');
+  const customRow = document.getElementById('customRangeRow');
+  if(hourRow) hourRow.style.display = p==='hour' ? 'flex' : 'none';
+  if(customRow) customRow.style.display = p==='custom' ? 'flex' : 'none';
+  if(p==='custom'){
+    const f=document.getElementById('customFrom'), t=document.getElementById('customTo');
+    if(f&&!f.value){ const d=new Date();d.setDate(d.getDate()-6);f.value=d.toISOString().slice(0,10); }
+    if(t&&!t.value) t.value=today();
+  }
+  renderSummary();
+}
 
 function renderSummary(){
   const labels=getLabels(periodTab);
+  const selHourForChart = periodTab==='hour' ? getSelectedHour() : null;
   const totals=labels.map(l=>shopNames.reduce((_,__,i)=>_+sumFor(i,periodTab,periodTab==='hour'?parseInt(l):l),0));
   const grand=totals.reduce((a,b)=>a+b,0);
   const bestI=totals.indexOf(Math.max(...totals));
   const selDate2 = getSelectedDate();
   document.getElementById('metricRow').innerHTML=`
-    <div class="metric-card" style="--ac:var(--accent)"><div class="metric-label">ยอดรวม${periodTab==='hour'?selDate2:periodTab==='day'?'7 วัน':'6 เดือน'}</div><div class="metric-value">${fmt(grand)}</div><div class="metric-sub">บาท (THB)</div></div>
+    <div class="metric-card" style="--ac:var(--accent)"><div class="metric-label">ยอดรวม ${periodTab==='hour'?(()=>{const h=getSelectedHour();return h!==null?`${String(h).padStart(2,'0')}:00-${String(h+1).padStart(2,'00')}:00`:selDate2})():periodTab==='day'?selDate2:periodTab==='7day'?'7 วัน':periodTab==='30day'?'30 วัน':periodTab==='60day'?'60 วัน':periodTab==='90day'?'90 วัน':'เดือน'}</div><div class="metric-value">${fmt(grand)}</div><div class="metric-sub">บาท (THB)</div></div>
     <div class="metric-card" style="--ac:var(--accent2)"><div class="metric-label">ช่องทั้งหมด</div><div class="metric-value">35</div><div class="metric-sub">ช่อง</div></div>
     <div class="metric-card" style="--ac:#7c3aed"><div class="metric-label">ช่วงสูงสุด</div><div class="metric-value" style="font-size:18px">${labels[bestI]||'-'}</div><div class="metric-sub">${fmt(totals[bestI]||0)} บาท</div></div>
     <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='day'?'วัน':'เดือน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
@@ -947,13 +1048,17 @@ function renderSummary(){
   const selDate = getSelectedDate();
   const labelEl = document.getElementById('summaryDateLabel');
   if(labelEl){
+    const selH = getSelectedHour();
+    const hLabel = selH!==null ? `${String(selH).padStart(2,'0')}:00-${String(selH+1).padStart(2,'00')}:00` : `ชั่วโมง ${nowHour()}`;
+    const cf = document.getElementById('customFrom')?.value;
+    const ct = document.getElementById('customTo')?.value;
     const labelMap = {
-      hour: `วันที่ ${selDate}`,
-      day: `วันที่ ${selDate}`,
-      '7day': `7 วันย้อนหลัง จาก ${selDate}`,
-      '30day': `30 วันย้อนหลัง จาก ${selDate}`,
-      '60day': `60 วันย้อนหลัง จาก ${selDate}`,
-      '90day': `90 วันย้อนหลัง จาก ${selDate}`,
+      hour: `วันที่ ${selDate} | ${hLabel}`,
+      today: `วันนี้ ${today()}`,
+      yesterday: `เมื่อวาน ${getYesterday()}`,
+      '7day': `7 วันย้อนหลัง`,
+      month: `เดือน ${today().slice(0,7)}`,
+      custom: cf&&ct ? `${cf} ถึง ${ct}` : 'กำหนดเอง',
     };
     if(labelEl) labelEl.textContent = labelMap[periodTab] || '';
   }
@@ -961,7 +1066,12 @@ function renderSummary(){
   const grid=document.getElementById('shopGrid');grid.innerHTML='';
   shopNames.forEach((s,i)=>{
     let curKey, prevKey;
-    if(periodTab==='hour'){ curKey=String(nowHour()); prevKey=String(nowHour()-1); }
+    if(periodTab==='hour'){
+      const selHour = getSelectedHour();
+      const h = selHour!==null ? selHour : nowHour();
+      curKey=String(h);
+      prevKey=String(h-1);
+    }
     else if(periodTab==='day'){ curKey=selDate; prevKey=''; }
     else {
       const pl=getLabels(periodTab, selDate);
@@ -1114,7 +1224,20 @@ async function saveBatch(){
 // ==================== COMPARE ====================
 const CHART_COLORS=['#e07b2a','#059669','#dc4c2a','#d4537e','#7c3aed','#65a30d','#d97706','#dc2626','#0e7490','#6d28d9','#1d4ed8','#15803d','#b45309','#991b1b','#4338ca','#0369a1','#166534','#92400e','#7f1d1d','#3730a3','#0891b2','#ca8a04','#84cc16','#f87171','#a78bfa','#6ee7b7','#fca5a5','#f9a8d4','#cbd5e1','#93c5fd','#fcd34d','#bbf7d0','#fecaca','#c4b5fd','#34d399'];
 
-function setCmpPeriod(btn,p){btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');cmpTab=p;buildCmpFilter();renderCompare();}
+function setCmpPeriod(btn,p){
+  btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  cmpTab=p;
+  const cmpCustomRow=document.getElementById('cmpCustomRow');
+  if(cmpCustomRow) cmpCustomRow.style.display = p==='custom' ? 'flex' : 'none';
+  if(p==='custom'){
+    const f=document.getElementById('cmpCustomFrom'), t=document.getElementById('cmpCustomTo');
+    if(f&&!f.value){ const d=new Date();d.setDate(d.getDate()-6);f.value=d.toISOString().slice(0,10); }
+    if(t&&!t.value) t.value=today();
+  }
+  buildCmpFilter();
+  renderCompare();
+}
 
 function getCmpDate(){
   const el=document.getElementById('cmpDate');
@@ -1135,6 +1258,8 @@ function buildCmpFilter(){
   let labels=[];
   if(cmpTab==='hour'){
     labels=Array.from({length:24},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+  } else if(cmpTab==='custom'){
+    labels = getCmpCustomRange();
   } else {
     labels = getLabels(cmpTab, cmpDateVal);
   }
