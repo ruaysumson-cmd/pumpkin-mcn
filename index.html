@@ -2264,7 +2264,7 @@ function addRetroRow(){
     '<span style="font-size:12px;color:var(--text3)">ถึง</span>'+
     '<select class="form-control" id="retro_end_'+idx+'" style="width:110px">'+hourEndOpts+'</select>'+
     '<input type="number" class="form-control" id="retro_amount_'+idx+'" placeholder="ยอดขาย (฿)" min="0" value="0" style="width:130px">'+
-    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="this.closest('div[id]').remove()">ลบ</button>';
+    '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="this.closest(&quot;[id^=retro_row]&quot;).remove()">ลบ</button>';
   container.appendChild(row);
   setTimeout(()=>{ const el=document.getElementById('retro_amount_'+idx); if(el){el.select();} },50);
 }
