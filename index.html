@@ -175,8 +175,34 @@ tr:hover td{background:#f8f9fe}
 .user-chip{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--text2)}
 .user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0}
 ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:var(--bg3)}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
-@media(max-width:768px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.hamburger{display:block}.shop-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}.metric-grid{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:480px){.metric-grid{grid-template-columns:1fr 1fr}.content{padding:16px}.export-opts{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}.hamburger{display:block}
+  .shop-grid{grid-template-columns:repeat(2,1fr)}
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .topbar{padding:0 14px;gap:6px;flex-wrap:nowrap;overflow-x:auto}
+  .topbar-time{display:none}
+  .btn{padding:6px 10px;font-size:12px}
+  .period-tabs{overflow-x:auto;width:100%}
+  .rank-bar-wrap{display:none}
+  .form-section{max-width:100%}
+}
+@media(max-width:480px){
+  .metric-grid{grid-template-columns:1fr 1fr}
+  .shop-grid{grid-template-columns:1fr 1fr}
+  .content{padding:12px}
+  .export-opts{grid-template-columns:1fr}
+  .topbar-title{font-size:13px}
+  .chart-wrap{height:180px}
+  .login-box{padding:28px 20px}
+  .period-tabs .ptab{padding:5px 10px;font-size:11px}
+  .rank-val{font-size:11px;width:70px}
+  .batch-grid{grid-template-columns:1fr}
+  .shopname-grid{grid-template-columns:1fr}
+  .modal{padding:20px 16px}
+  table{font-size:12px}
+  th,td{padding:8px 10px}
+}
 </style>
 </head>
 <body>
@@ -382,7 +408,7 @@ tr:hover td{background:#f8f9fe}
       <div class="chart-card" style="padding:0;overflow:hidden">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>ช่อง</th><th>วันที่</th><th>ช่วงเวลา</th><th class="num">ยอดขาย (฿)</th><th></th></tr></thead>
+            <thead><tr><th>ช่อง</th><th>วันที่</th><th>ช่วงเวลา</th><th class="num">ยอดขาย (฿)</th><th>บันทึกโดย</th><th></th></tr></thead>
             <tbody id="histBody"></tbody>
           </table>
         </div>
@@ -553,7 +579,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbwBkzLVXAG_83BpRMkl5bp9BLonCEg-zQyfRYI3RxhLV9BhVnUUVVJUOWUtA63fgSW-/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxhuO_cbNEcbB8jmYnCrj7zzoSxdNGwiOiybjBscqYxXrluIpg3A-CQtdCyXmU4gjuc/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -1006,11 +1032,17 @@ async function saveEntry(){
   if(!date){toast('กรุณาเลือกวันที่','error');return;}
   if(hourEnd<=hourStart){toast('เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น','error');return;}
   const timeRange=fmtTimeRange(hourStart,hourEnd);
+  const staff = currentSession()?.displayName || 'Web User';
   const btn=document.getElementById('saveBtn');
   btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
   setSyncStatus('syncing');
   try {
-    await apiCall('saveRecord',{shop,date,hourStart,hourEnd,timeRange,amount});
+    const res = await apiCall('saveRecord',{shop,date,hourStart,hourEnd,timeRange,amount,staff});
+    if(res.action === 'duplicate'){
+      setSyncStatus('online');
+      toast(`⚠️ รายการซ้ำ! ${shopNames[shop]} ${timeRange} ยอด ฿${fmt(amount)} มีการบันทึกแล้วค่ะ`,'error');
+      return;
+    }
     const idx=records.findIndex(r=>r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd);
     if(idx>=0)records[idx].amount=amount; else records.push({shop,date,hourStart,hourEnd,timeRange,amount});
     setSyncStatus('online'); setLastSync();
@@ -1123,6 +1155,7 @@ function renderHistory(){
     <td style="font-family:var(--mono);color:var(--text2)">${r.date}</td>
     <td style="font-family:var(--mono);color:var(--text2)">${r.timeRange||'-'}</td>
     <td class="num" style="font-weight:500">${fmt(r.amount)}</td>
+    <td style="color:var(--text3);font-size:12px">${r.staff||'-'}</td>
     <td><button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="delRecord(${r.shop},'${r.date}',${r.hourStart},${r.hourEnd})">ลบ</button></td>
   </tr>`).join('');
 }
