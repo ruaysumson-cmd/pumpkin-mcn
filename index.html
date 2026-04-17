@@ -2074,17 +2074,8 @@ function addTimeRow(){
   const container = document.getElementById('multiTimeRows');
   const idx = multiTimeList.length;
 
-  // auto เลื่อนต่อจากเวลาสิ้นสุดของแถวก่อน
-  let defStart = parseInt(document.getElementById('inHourEnd')?.value||nowHour()+1);
-  if(container.children.length > 0){
-    const rows = container.querySelectorAll('[id^="mtr_"]');
-    const lastRow = rows[rows.length-1];
-    if(lastRow){
-      const lastId = lastRow.id.replace('mtr_','');
-      const lastEnd = parseInt(document.getElementById('mtr_end_'+lastId)?.value);
-      if(!isNaN(lastEnd)) defStart = Math.min(lastEnd,23);
-    }
-  }
+  // ใช้เวลาสิ้นสุดจาก inHourEnd เป็น default (ไม่ auto-continue)
+  const defStart = parseInt(document.getElementById('inHourEnd')?.value||nowHour()+1);
   const defEnd = Math.min(defStart+1,24);
 
   const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}" ${i===defStart?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
@@ -2099,13 +2090,11 @@ function addTimeRow(){
     '<span style="font-size:12px;color:var(--text3)">ถึง</span>'+
     '<select class="form-control" id="mtr_end_'+idx+'" style="width:110px">'+hourEndOpts+'</select>'+
     '<input type="number" class="form-control" id="mtr_amount_'+idx+'" placeholder="ยอดขาย" min="0" value="0" style="width:120px">'+
-    '<input type="file" id="ph_file_'+idx+'" accept="image/*" style="display:none">'+
     '<button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeTimeRow('+idx+')">ลบ</button>';
 
   container.appendChild(row);
   multiTimeList.push({hourStart:defStart, hourEnd:defEnd, amount:0});
   updateMultiSaveBtn();
-  setTimeout(()=>{ const el=document.getElementById('mtr_amount_'+idx); if(el){el.select();} },50);
 }
 
 
@@ -2273,3 +2262,5 @@ function addRetroRow(){
   container.appendChild(row);
   setTimeout(()=>{ const el=document.getElementById('retro_amount_'+idx); if(el){el.select();} },50);
 }
+
+
