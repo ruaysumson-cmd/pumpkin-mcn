@@ -324,14 +324,14 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab active" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
         <button class="ptab" onclick="setPeriod(this,'today')">วันนี้</button>
         <button class="ptab" onclick="setPeriod(this,'yesterday')">เมื่อวาน</button>
-        <button class="ptab" onclick="setPeriod(this,'7day')">7 วัน</button>
+        <button class="ptab" onclick="setPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
         <button class="ptab" onclick="setPeriod(this,'month')">เดือนนี้</button>
         <button class="ptab" onclick="setPeriod(this,'custom')">กำหนดเอง</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="summaryDate" style="width:auto">
-        <button class="btn btn-primary" onclick="renderSummary()" style="padding:8px 18px" id="summarySearchBtn">
+        <button class="btn btn-primary" onclick="renderSummary()" style="padding:8px 18px;display:none" id="summarySearchBtn">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
           ค้นหา
         </button>
@@ -638,7 +638,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbxhuO_cbNEcbB8jmYnCrj7zzoSxdNGwiOiybjBscqYxXrluIpg3A-CQtdCyXmU4gjuc/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwXfgei50wEChVxlTgQnv5F3I-GvEHQOptavZQeDXq-ao1K4n5vntx6rKBY2paM9TB9/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -1054,14 +1054,17 @@ function setPeriod(btn,p){
   btn.closest('.period-tabs').querySelectorAll('.ptab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   periodTab=p;
-  const hourRow = document.getElementById('hourFilterRow');
-  const customRow = document.getElementById('customRangeRow');
-  if(hourRow) hourRow.style.display = p==='hour' ? 'flex' : 'none';
-  if(customRow) customRow.style.display = p==='custom' ? 'flex' : 'none';
+  const hourRow=document.getElementById('hourFilterRow');
+  const customRow=document.getElementById('customRangeRow');
+  const searchBtn=document.getElementById('summarySearchBtn');
+  if(hourRow) hourRow.style.display = p==='hour'?'flex':'none';
+  if(searchBtn) searchBtn.style.display = p==='hour'?'inline-flex':'none';
+  if(customRow) customRow.style.display = p==='custom'?'flex':'none';
   if(p==='custom'){
     const f=document.getElementById('customFrom'), t=document.getElementById('customTo');
-    if(f&&!f.value){ const d=new Date();d.setDate(d.getDate()-6);f.value=d.toISOString().slice(0,10); }
+    if(f&&!f.value){const d=new Date();d.setDate(d.getDate()-6);f.value=d.toISOString().slice(0,10);}
     if(t&&!t.value) t.value=today();
+    return; // รอกดค้นหาก่อน
   }
   renderSummary();
 }
@@ -1276,7 +1279,7 @@ function setCmpPeriod(btn,p){
     if(t&&!t.value) t.value=today();
   }
   buildCmpFilter();
-  renderCompare();
+  if(p!=='custom') renderCompare();
 }
 
 function getCmpDate(){
