@@ -134,8 +134,8 @@ tr:hover td{background:#f8f9fe}
 .num{text-align:right;font-family:var(--mono)}
 .shopname-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:16px}
 .shopname-row{display:flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px}
-.shop-avatar{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2.5px solid var(--line2);flex-shrink:0;cursor:pointer;background:var(--bg4);box-shadow:0 2px 8px rgba(120,70,20,0.12)}
-.shop-avatar-placeholder{width:60px;height:60px;border-radius:50%;background:var(--goldlt);border:2px dashed var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:22px;color:var(--gold);transition:all .2s}
+.shop-avatar{width:68px;height:68px;border-radius:50%;object-fit:cover;border:2.5px solid var(--line2);flex-shrink:0;cursor:pointer;background:var(--bg4);box-shadow:0 2px 10px rgba(120,70,20,0.12)}
+.shop-avatar-placeholder{width:68px;height:68px;border-radius:50%;background:var(--goldlt);border:2px dashed var(--gold);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:24px;color:var(--gold);transition:all .2s}
 .shop-avatar-placeholder:hover{background:var(--gold);color:#fff}
 .shopname-idx{font-family:var(--mono);font-size:11px;color:var(--text3);width:28px;text-align:right;flex-shrink:0;font-weight:600}
 .shopname-input{flex:1;padding:8px 10px;background:var(--bg3);border:1px solid var(--line2);border-radius:var(--r);color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:all .15s}
@@ -486,6 +486,27 @@ tr:hover td{background:#f8f9fe}
   </div>
 </div>
 
+
+<!-- CROP MODAL -->
+<div class="modal-overlay" id="cropModal" style="z-index:500">
+  <div class="modal" style="width:360px;padding:20px">
+    <div class="modal-title">ครอปรูปภาพ</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px">ลากเพื่อเลื่อน | ใช้นิ้วหรือ scroll เพื่อซูม</p>
+    <div style="position:relative;width:300px;height:300px;border-radius:50%;overflow:hidden;margin:0 auto 16px;border:3px solid var(--gold);background:var(--bg3)">
+      <canvas id="cropCanvas" width="300" height="300" style="position:absolute;top:0;left:0;cursor:grab"></canvas>
+      <div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,0.5);pointer-events:none"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span style="font-size:12px;color:var(--text3)">ซูม</span>
+      <input type="range" id="cropZoom" min="0.5" max="3" step="0.01" value="1" style="flex:1">
+      <span style="font-size:12px;color:var(--text3)" id="cropZoomVal">1x</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="cancelCrop()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="confirmCrop()">✓ ใช้รูปนี้</button>
+    </div>
+  </div>
+</div>
 <!-- CONFIRM MODAL -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
@@ -955,8 +976,8 @@ function renderSummary(){
       :`<span class="metric-badge badge-dn">▼ ${Math.abs(pct)}%</span>`;
     const photos = getShopPhotos();
     const photoHtml = photos[i]
-      ? `<img src="${photos[i]}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2.5px solid var(--line2);flex-shrink:0;box-shadow:0 2px 8px rgba(120,70,20,0.12)">`
-      : `<div style="width:56px;height:56px;border-radius:50%;background:var(--goldlt);border:2px solid var(--line2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--gold);flex-shrink:0">${s.charAt(0).toUpperCase()}</div>`;
+      ? `<img src="${photos[i]}" style="width:68px;height:68px;border-radius:50%;object-fit:cover;border:3px solid var(--line2);flex-shrink:0;box-shadow:0 2px 10px rgba(120,70,20,0.15);cursor:pointer" onclick="uploadShopPhoto(${i})" title="เปลี่ยนรูป">`
+      : `<div style="width:68px;height:68px;border-radius:50%;background:var(--goldlt);border:2.5px dashed var(--gold);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:var(--gold);flex-shrink:0;cursor:pointer" onclick="uploadShopPhoto(${i})" title="เพิ่มรูป">${s.charAt(0).toUpperCase()}</div>`;
     grid.innerHTML+=`<div class="shop-card" style="cursor:pointer" onclick="showShopDetail(${i})">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
         ${photoHtml}
@@ -1137,10 +1158,22 @@ function renderCompare(){
       y:{ticks:{color:'#5a5f7a',font:{size:11,family:'IBM Plex Sans Thai'}},grid:{display:false},border:{color:'#e2e4ec'}}}}
   });
   const list=document.getElementById('rankList');list.innerHTML='';
+  const rankPhotos = getShopPhotos();
   sorted.forEach(({v,i},rank)=>{
     const pct=Math.round(v/maxV*100);
     const rc=rank===0?'gold':rank===1?'silver':rank===2?'bronze':'';
-    list.innerHTML+=`<div class="rank-item"><div class="rank-num ${rc}">${rank+1}</div><div class="rank-name">${shopNames[i]}</div><div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${pct}%;background:${CHART_COLORS[i]}"></div></div></div><div class="rank-val">${fmt(v)} ฿</div></div>`;
+    const photo = rankPhotos[i];
+    const avatarHtml = photo
+      ? `<img src="${photo}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2.5px solid ${CHART_COLORS[i]};flex-shrink:0;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.12)" onclick="uploadShopPhotoFromRank(${i})" title="เปลี่ยนรูป">`
+      : `<div style="width:52px;height:52px;border-radius:50%;background:var(--goldlt);border:2.5px dashed ${CHART_COLORS[i]};display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:${CHART_COLORS[i]};flex-shrink:0;cursor:pointer" onclick="uploadShopPhotoFromRank(${i})" title="เพิ่มรูป">${shopNames[i].charAt(0).toUpperCase()}</div>`;
+    list.innerHTML+=`<div class="rank-item">
+      <div class="rank-num ${rc}">${rank+1}</div>
+      ${avatarHtml}
+      <input type="file" id="rank_ph_${i}" accept="image/*" style="display:none" onchange="handleRankPhotoUpload(${i},this)">
+      <div class="rank-name">${shopNames[i]}</div>
+      <div class="rank-bar-wrap"><div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${pct}%;background:${CHART_COLORS[i]}"></div></div></div>
+      <div class="rank-val">${fmtBig(v)} ฿</div>
+    </div>`;
   });
 }
 
@@ -1185,18 +1218,22 @@ function uploadShopPhoto(idx){
   document.getElementById('ph_'+idx)?.click();
 }
 
+function uploadShopPhotoFromRank(idx){
+  document.getElementById('rank_ph_'+idx)?.click();
+}
+
+function handleRankPhotoUpload(idx, input){
+  const file = input.files[0];
+  if(!file) return;
+  openCropModal(idx, file, true);
+  input.value='';
+}
+
 function handlePhotoUpload(idx, input){
   const file = input.files[0];
   if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const photos = getShopPhotos();
-    photos[idx] = e.target.result;
-    saveShopPhotos(photos);
-    renderSettings();
-    toast(`✅ บันทึกรูป ${shopNames[idx]} แล้วค่ะ`);
-  };
-  reader.readAsDataURL(file);
+  openCropModal(idx, file, false);
+  input.value='';
 }
 
 function saveSheetsUrl(){
@@ -1554,6 +1591,139 @@ function saveUsers(){
   saveUsersData(updated);
   toast('✅ บันทึกผู้ใช้งานทั้งหมดแล้วค่ะ');
 }
+
+
+// ==================== IMAGE CROP ====================
+let cropState = {
+  img: null, shopIdx: null, scale: 1,
+  offsetX: 0, offsetY: 0,
+  dragging: false, lastX: 0, lastY: 0,
+  fromRank: false
+};
+
+function openCropModal(idx, file, fromRank){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      cropState.img = img;
+      cropState.shopIdx = idx;
+      cropState.fromRank = fromRank||false;
+      cropState.scale = Math.max(300/img.width, 300/img.height);
+      cropState.offsetX = (300 - img.width * cropState.scale) / 2;
+      cropState.offsetY = (300 - img.height * cropState.scale) / 2;
+      document.getElementById('cropZoom').value = cropState.scale;
+      document.getElementById('cropZoomVal').textContent = cropState.scale.toFixed(1)+'x';
+      document.getElementById('cropModal').classList.add('open');
+      drawCrop();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function drawCrop(){
+  const canvas = document.getElementById('cropCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,300,300);
+  if(!cropState.img) return;
+  ctx.drawImage(cropState.img,
+    cropState.offsetX, cropState.offsetY,
+    cropState.img.width * cropState.scale,
+    cropState.img.height * cropState.scale
+  );
+}
+
+function confirmCrop(){
+  const canvas = document.getElementById('cropCanvas');
+  // สร้าง canvas วงกลม
+  const out = document.createElement('canvas');
+  out.width = 300; out.height = 300;
+  const ctx = out.getContext('2d');
+  ctx.beginPath();
+  ctx.arc(150,150,150,0,Math.PI*2);
+  ctx.clip();
+  ctx.drawImage(canvas,0,0);
+  const dataUrl = out.toDataURL('image/jpeg', 0.85);
+  const photos = getShopPhotos();
+  photos[cropState.shopIdx] = dataUrl;
+  saveShopPhotos(photos);
+  closeModal('cropModal');
+  toast(`✅ บันทึกรูป ${shopNames[cropState.shopIdx]} แล้วค่ะ`);
+  // Re-render ตามหน้าที่มา
+  if(cropState.fromRank) renderCompare();
+  else { renderSummary(); renderSettings(); }
+}
+
+function cancelCrop(){
+  closeModal('cropModal');
+}
+
+// Drag to pan
+(function(){
+  let canvas;
+  window.addEventListener('DOMContentLoaded', ()=>{
+    canvas = document.getElementById('cropCanvas');
+    if(!canvas) return;
+
+    canvas.addEventListener('mousedown', e=>{
+      cropState.dragging=true;
+      cropState.lastX=e.clientX;
+      cropState.lastY=e.clientY;
+      canvas.style.cursor='grabbing';
+    });
+    window.addEventListener('mousemove', e=>{
+      if(!cropState.dragging) return;
+      cropState.offsetX += e.clientX - cropState.lastX;
+      cropState.offsetY += e.clientY - cropState.lastY;
+      cropState.lastX=e.clientX;
+      cropState.lastY=e.clientY;
+      drawCrop();
+    });
+    window.addEventListener('mouseup', ()=>{
+      cropState.dragging=false;
+      if(canvas) canvas.style.cursor='grab';
+    });
+
+    // Touch support
+    canvas.addEventListener('touchstart', e=>{
+      e.preventDefault();
+      cropState.dragging=true;
+      cropState.lastX=e.touches[0].clientX;
+      cropState.lastY=e.touches[0].clientY;
+    },{passive:false});
+    canvas.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      if(!cropState.dragging) return;
+      cropState.offsetX += e.touches[0].clientX - cropState.lastX;
+      cropState.offsetY += e.touches[0].clientY - cropState.lastY;
+      cropState.lastX=e.touches[0].clientX;
+      cropState.lastY=e.touches[0].clientY;
+      drawCrop();
+    },{passive:false});
+    canvas.addEventListener('touchend', ()=>{ cropState.dragging=false; });
+
+    // Scroll zoom
+    canvas.addEventListener('wheel', e=>{
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      cropState.scale = Math.max(0.5, Math.min(3, cropState.scale+delta));
+      document.getElementById('cropZoom').value = cropState.scale;
+      document.getElementById('cropZoomVal').textContent = cropState.scale.toFixed(1)+'x';
+      drawCrop();
+    },{passive:false});
+  });
+})();
+
+// Zoom slider
+document.addEventListener('DOMContentLoaded', ()=>{
+  const zoomEl = document.getElementById('cropZoom');
+  if(zoomEl) zoomEl.addEventListener('input', function(){
+    cropState.scale = parseFloat(this.value);
+    document.getElementById('cropZoomVal').textContent = cropState.scale.toFixed(1)+'x';
+    drawCrop();
+  });
+});
 
 // Start
 if(checkSession()){ init(); }
