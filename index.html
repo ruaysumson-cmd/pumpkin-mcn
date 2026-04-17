@@ -328,7 +328,7 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab" onclick="setPeriod(this,'month')">เดือนนี้</button>
         <button class="ptab" onclick="setPeriod(this,'custom')">กำหนดเอง</button>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <div id="summaryDateRow" style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="summaryDate" style="width:auto">
         <button class="btn btn-primary" onclick="renderSummary()" style="padding:8px 18px;display:none" id="summarySearchBtn">
@@ -343,7 +343,7 @@ tr:hover td{background:#f8f9fe}
         <input type="date" class="form-control" id="customFrom" style="width:auto" onchange="renderSummary()" max="today">
         <span style="font-size:11px;color:var(--text3)">ถึง</span>
         <input type="date" class="form-control" id="customTo" style="width:auto" onchange="renderSummary()" max="today">
-        <button class="btn btn-ghost" style="font-size:12px" onclick="setCustomYear()">ย้อนหลัง 1 ปี</button>
+        <button class="btn btn-ghost"
       </div>
       <div id="customRangeRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
@@ -354,7 +354,6 @@ tr:hover td{background:#f8f9fe}
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
           ค้นหา
         </button>
-        <button class="btn btn-ghost" style="font-size:12px" onclick="setCustomYear()">1 ปีย้อนหลัง</button>
       </div>
       <div id="hourFilterRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
@@ -387,6 +386,17 @@ tr:hover td{background:#f8f9fe}
           <div class="form-group"><span class="form-label">ยอดขาย (บาท)</span><input type="number" class="form-control" id="inAmount" placeholder="0.00" min="0" step="0.01"></div>
           <div class="form-group" style="max-width:130px"><span class="form-label">&nbsp;</span><button class="btn btn-primary" id="saveBtn" onclick="saveEntry()">💾 บันทึก</button></div>
         </div>
+        <!-- เพิ่มรายการช่วงเวลา -->
+        <div id="multiTimeRows" style="margin-top:8px;display:flex;flex-direction:column;gap:8px"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="addTimeRow()" style="font-size:12px">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1v12M1 7h12"/></svg>
+            เพิ่มช่วงเวลา
+          </button>
+          <button class="btn btn-primary" id="saveMultiBtn" onclick="saveMultiEntry()" style="display:none;font-size:12px">
+            💾 บันทึกทั้งหมด (<span id="multiCount">0</span> ช่วงเวลา)
+          </button>
+        </div>
       </div>
       <div style="margin-bottom:12px">
         <button class="btn btn-ghost" onclick="toggleBatch()">⊞ บันทึกพร้อมกัน 35 ช่อง</button>
@@ -408,24 +418,34 @@ tr:hover td{background:#f8f9fe}
     <div class="page" id="page-compare">
       <div class="period-tabs">
         <button class="ptab active" onclick="setCmpPeriod(this,'hour')">รายชั่วโมง</button>
-        <button class="ptab" onclick="setCmpPeriod(this,'day')">รายวัน</button>
-        <button class="ptab" onclick="setCmpPeriod(this,'month')">รายเดือน</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'today')">วันนี้</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'yesterday')">เมื่อวาน</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'month')">เดือนนี้</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'custom')">กำหนดเอง</button>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <div id="cmpDateRow" style="display:none;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
         <input type="date" class="form-control" id="cmpDate" style="width:auto" onchange="buildCmpFilter();renderCompare()">
         <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpDate()">วันนี้</button>
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono)">|</span>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
         <select class="form-control" id="cmpFilter" onchange="renderCompare()" style="width:auto"></select>
+      </div>
+      <div id="cmpHourRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ช่วงเวลา:</span>
+        <select class="form-control" id="cmpHour" style="width:auto"></select>
+        <button class="btn btn-primary" onclick="renderCompare()" style="padding:8px 18px">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="4"/><path d="M10 10l2.5 2.5"/></svg>
+          ค้นหา
+        </button>
+        <button class="btn btn-ghost" style="font-size:12px" onclick="resetCmpHour()">ชั่วโมงปัจจุบัน</button>
       </div>
       <div id="cmpCustomRow" style="display:none;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
         <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">ตั้งแต่:</span>
         <input type="date" class="form-control" id="cmpCustomFrom" style="width:auto" onchange="renderCompare()">
         <span style="font-size:11px;color:var(--text3)">ถึง</span>
         <input type="date" class="form-control" id="cmpCustomTo" style="width:auto" onchange="renderCompare()">
-        <button class="btn btn-ghost" style="font-size:12px" onclick="setCmpCustomYear()">ย้อนหลัง 1 ปี</button>
-      </div>
+        </div>
       <div class="chart-card">
         <div class="card-header"><span class="card-title">Top 10 ช่อง</span></div>
         <div class="chart-wrap" style="height:290px"><canvas id="compareChart"></canvas></div>
@@ -882,6 +902,7 @@ function init(){
   const summaryDateEl=document.getElementById('summaryDate');
   if(summaryDateEl)summaryDateEl.value=today();
   buildHourSelector();
+  buildCmpHourSelector();
   // แสดง hour filter ถ้า period=hour
   const hourRow=document.getElementById('hourFilterRow');
   if(hourRow&&periodTab==='hour')hourRow.style.display='flex';
@@ -972,16 +993,23 @@ function getCmpCustomRange(){
   return days;
 }
 
+const MAX_LOOKBACK_DAYS = 365; // ดูย้อนหลังได้สูงสุด 1 ปี
+
 function getCustomDays(){
-  const from = document.getElementById('customFrom')?.value;
+  let from = document.getElementById('customFrom')?.value;
   const to = document.getElementById('customTo')?.value;
   if(!from||!to) return [today()];
+  // จำกัดไม่ให้ดูย้อนหลังเกิน 1 ปี
+  const minDate = new Date(to);
+  minDate.setDate(minDate.getDate() - MAX_LOOKBACK_DAYS);
+  const minStr = minDate.toISOString().slice(0,10);
+  if(from < minStr) from = minStr;
   const days=[];
   const start=new Date(from), end=new Date(to);
   for(let dt=new Date(start); dt<=end; dt.setDate(dt.getDate()+1)){
     days.push(dt.toISOString().slice(0,10));
   }
-  return days.slice(0,366);
+  return days;
 }
 
 function setCustomYear(){
@@ -1065,13 +1093,27 @@ function setPeriod(btn,p){
   const hourRow=document.getElementById('hourFilterRow');
   const customRow=document.getElementById('customRangeRow');
   const searchBtn=document.getElementById('summarySearchBtn');
+  const dateRow=document.getElementById('summaryDateRow');
+
+  // ซ่อน/แสดง date row
+  if(dateRow) dateRow.style.display = p==='custom'?'none':'flex';
+
   if(hourRow) hourRow.style.display = p==='hour'?'flex':'none';
   if(searchBtn) searchBtn.style.display = p==='hour'?'inline-flex':'none';
   if(customRow) customRow.style.display = p==='custom'?'flex':'none';
   if(p==='custom'){
     const f=document.getElementById('customFrom'), t=document.getElementById('customTo');
-    if(f&&!f.value){const d=new Date();d.setDate(d.getDate()-6);f.value=d.toISOString().slice(0,10);}
-    if(t&&!t.value) t.value=today();
+    const minD=new Date(); minD.setFullYear(minD.getFullYear()-1);
+    if(f){
+      f.min=minD.toISOString().slice(0,10);
+      f.max=today();
+      if(!f.value){const d=new Date();d.setDate(d.getDate()-30);f.value=d.toISOString().slice(0,10);}
+    }
+    if(t){
+      t.min=minD.toISOString().slice(0,10);
+      t.max=today();
+      if(!t.value) t.value=today();
+    }
     return; // รอกดค้นหาก่อน
   }
   renderSummary();
@@ -1322,7 +1364,11 @@ function renderCompare(){
   const label=document.getElementById('cmpFilter').value;if(!label)return;
   const key=cmpTab==='hour'?parseInt(label):label;
   const cmpDateVal=getCmpDate();
-  const vals=shopNames.map((_,i)=>sumFor(i,cmpTab,key,['hour','day','7day','30day','60day','90day'].includes(cmpTab)?cmpDateVal:null));
+  const cmpH = getCmpSelectedHour ? getCmpSelectedHour() : nowHour();
+  const vals=shopNames.map((_,i)=>{
+    if(cmpTab==='hour') return sumFor(i,'hour',String(cmpH),cmpDateVal);
+    return sumFor(i,cmpTab,key,null);
+  });
   const sorted=vals.map((v,i)=>({v,i})).sort((a,b)=>b.v-a.v);
   const maxV=Math.max(...vals)||1;const top10=sorted.slice(0,10);
   if(compareChart)compareChart.destroy();
@@ -1936,6 +1982,154 @@ function getCustomDaysCmp(){
     days.push(dt.toISOString().slice(0,10));
   }
   return days.slice(0,366);
+}
+
+
+// ==================== MULTI TIME ENTRY ====================
+let multiTimeList = []; // [{hourStart, hourEnd, amount}]
+
+function addTimeRow(){
+  const container = document.getElementById('multiTimeRows');
+  const idx = multiTimeList.length;
+  
+  // ดึงค่าเวลาปัจจุบันเป็น default
+  const lastEnd = multiTimeList.length > 0 
+    ? multiTimeList[multiTimeList.length-1].hourEnd 
+    : parseInt(document.getElementById('inHourEnd').value)||nowHour()+1;
+  
+  const row = document.createElement('div');
+  row.id = `mtr_${idx}`;
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:var(--r);padding:8px 12px;flex-wrap:wrap';
+  
+  // สร้าง options เวลา
+  const hourOpts = Array.from({length:24},(_,i)=>`<option value="${i}" ${i===lastEnd?'selected':''}>${String(i).padStart(2,'0')}:00</option>`).join('');
+  const hourEndOpts = Array.from({length:24},(_,i)=>`<option value="${i+1}" ${i+1===lastEnd+1?'selected':''}>${String(i+1).padStart(2,'00')}:00</option>`).join('');
+  
+  row.innerHTML = `
+    <span style="font-size:11px;color:var(--text3);font-family:var(--mono);flex-shrink:0">ช่วงที่ ${idx+1}</span>
+    <select class="form-control" id="mtr_start_${idx}" style="width:100px" onchange="updateMultiRow(${idx})">
+      ${hourOpts}
+    </select>
+    <span style="font-size:12px;color:var(--text3)">ถึง</span>
+    <select class="form-control" id="mtr_end_${idx}" style="width:100px">
+      ${hourEndOpts}
+    </select>
+    <input type="number" class="form-control" id="mtr_amount_${idx}" placeholder="ยอดขาย" min="0" style="width:120px">
+    <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;flex-shrink:0" onclick="removeTimeRow(${idx})">ลบ</button>
+  `;
+  
+  container.appendChild(row);
+  multiTimeList.push({hourStart: lastEnd, hourEnd: lastEnd+1, amount: 0});
+  updateMultiSaveBtn();
+}
+
+function removeTimeRow(idx){
+  const row = document.getElementById(`mtr_${idx}`);
+  if(row) row.remove();
+  multiTimeList.splice(idx, 1);
+  // Re-index remaining rows
+  rebuildMultiRows();
+  updateMultiSaveBtn();
+}
+
+function rebuildMultiRows(){
+  const container = document.getElementById('multiTimeRows');
+  const rows = container.querySelectorAll('[id^="mtr_"]');
+  rows.forEach((row, newIdx) => {
+    row.id = `mtr_${newIdx}`;
+    const label = row.querySelector('span');
+    if(label) label.textContent = `ช่วงที่ ${newIdx+1}`;
+  });
+}
+
+function updateMultiRow(idx){
+  const start = parseInt(document.getElementById(`mtr_start_${idx}`)?.value||0);
+  const endSel = document.getElementById(`mtr_end_${idx}`);
+  if(endSel) endSel.value = String(start+1);
+}
+
+function updateMultiSaveBtn(){
+  const count = document.getElementById('multiTimeRows')?.children.length || 0;
+  const btn = document.getElementById('saveMultiBtn');
+  const countEl = document.getElementById('multiCount');
+  if(btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
+  if(countEl) countEl.textContent = count;
+}
+
+async function saveMultiEntry(){
+  const shop = parseInt(document.getElementById('selShop').value);
+  const date = document.getElementById('inDate').value;
+  if(!date){ toast('กรุณาเลือกวันที่','error'); return; }
+  
+  const rows = document.getElementById('multiTimeRows')?.children;
+  if(!rows || rows.length === 0){ toast('ไม่มีช่วงเวลาที่จะบันทึก','error'); return; }
+  
+  // รวบรวมข้อมูลทุก row
+  const entries = [];
+  for(let i=0; i<rows.length; i++){
+    const rowEl = rows[i];
+    const rowIdx = rowEl.id.replace('mtr_','');
+    const hourStart = parseInt(document.getElementById(`mtr_start_${rowIdx}`)?.value||0);
+    const hourEnd = parseInt(document.getElementById(`mtr_end_${rowIdx}`)?.value||hourStart+1);
+    const amount = parseFloat(document.getElementById(`mtr_amount_${rowIdx}`)?.value||0);
+    if(amount <= 0){ toast(`ช่วงที่ ${i+1}: กรุณากรอกยอดขายค่ะ`,'error'); return; }
+    if(hourEnd <= hourStart){ toast(`ช่วงที่ ${i+1}: เวลาสิ้นสุดต้องมากกว่าเวลาเริ่มต้น`,'error'); return; }
+    const timeRange = fmtTimeRange(hourStart, hourEnd);
+    const staff = currentSession()?.displayName || 'Web User';
+    entries.push({shop, date, hourStart, hourEnd, timeRange, amount, staff});
+  }
+  
+  const btn = document.getElementById('saveMultiBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังบันทึก...';
+  setSyncStatus('syncing');
+  
+  try {
+    const results = await Promise.all(entries.map(e => apiCall('saveRecord', e)));
+    let saved=0, dupes=0;
+    results.forEach((res,i) => {
+      if(res.action==='duplicate'){ dupes++; return; }
+      const r = entries[i];
+      const idx = records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hourStart===r.hourStart&&x.hourEnd===r.hourEnd);
+      if(idx>=0) records[idx].amount=r.amount; else records.push(r);
+      saved++;
+    });
+    setSyncStatus('online'); setLastSync();
+    
+    // ล้าง rows
+    document.getElementById('multiTimeRows').innerHTML = '';
+    multiTimeList = [];
+    updateMultiSaveBtn();
+    
+    let msg = `✅ บันทึก ${saved} ช่วงเวลาสำเร็จค่ะ`;
+    if(dupes > 0) msg += ` (ซ้ำ ${dupes} ช่วง ไม่บันทึก)`;
+    toast(msg);
+    renderSummary();
+  } catch(e) {
+    setSyncStatus('offline');
+    toast('❌ บันทึกไม่สำเร็จ กรุณาลองใหม่','error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `💾 บันทึกทั้งหมด (<span id="multiCount">${document.getElementById('multiTimeRows')?.children.length||0}</span> ช่วงเวลา)`;
+  }
+}
+
+function buildCmpHourSelector(){
+  const sel=document.getElementById('cmpHour');
+  if(!sel||sel.options.length>0) return;
+  for(let i=0;i<24;i++){
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent=String(i).padStart(2,'0')+':00 - '+String(i+1).padStart(2,'00')+':00';
+    sel.appendChild(o);
+  }
+  sel.value=String(nowHour());
+}
+
+function resetCmpHour(){
+  const el=document.getElementById('cmpHour');
+  if(el) el.value=String(nowHour());
+  renderCompare();
 }
 
 // Start
