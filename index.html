@@ -647,7 +647,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   if(saved) window._sheetsUrl = saved;
 });
 const SHOP_COUNT = 35;
-const AUTO_REFRESH_MS = 30000; // รีเฟรชทุก 30 วินาที
+const AUTO_REFRESH_MS = 300000; // รีเฟรชทุก 5 นาที
 
 // ==================== STATE ====================
 let shopNames = [
@@ -763,9 +763,9 @@ async function apiCall(action, body={}){
   }
 }
 
-async function loadAll(){
+async function loadAll(silent=false){
   setSyncStatus('syncing');
-  document.getElementById('loadingOverlay').classList.remove('hidden');
+  if(!silent) document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('syncBanner').classList.add('show');
   try {
     const [recRes, nameRes] = await Promise.all([
@@ -796,7 +796,7 @@ async function loadAll(){
     toast('❌ เชื่อมต่อ Google Sheets ไม่ได้','error');
   } finally {
     document.getElementById('syncBanner').classList.remove('show');
-    document.getElementById('loadingOverlay').classList.add('hidden');
+    if(!silent) document.getElementById('loadingOverlay').classList.add('hidden');
     isSyncing=false;
   }
 }
@@ -894,7 +894,15 @@ function init(){
   buildBatchInputs();
   loadAll();
   // Auto refresh
-  setInterval(()=>{if(!isSyncing && !isEditingNames)loadAll();}, AUTO_REFRESH_MS);
+  setInterval(()=>{
+    // ไม่โหลดถ้ากำลัง: sync, กรอกชื่อ, กรอกยอด, หรือมี modal เปิดอยู่
+    const hasOpenModal = document.querySelector('.modal-overlay.open');
+    const isTyping = document.activeElement && 
+      ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+    if(!isSyncing && !isEditingNames && !hasOpenModal && !isTyping){
+      loadAll(true); // silent — ไม่แสดง loading overlay
+    }
+  }, AUTO_REFRESH_MS);
 }
 
 function rebuildSelects(){
