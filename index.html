@@ -2264,3 +2264,18 @@ function addRetroRow(){
 }
 
 
+
+// ==================== STARTUP ====================
+document.addEventListener('DOMContentLoaded', function(){
+  if(checkSession()){
+    init();
+  } else {
+    const loginOverlay = document.getElementById('loginOverlay');
+    if(loginOverlay) loginOverlay.classList.remove('hidden');
+    const loginUser = document.getElementById('loginUser');
+    if(loginUser) loginUser.focus();
+  }
+});
+</script>
+</body>
+</html>
