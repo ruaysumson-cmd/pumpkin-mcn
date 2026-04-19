@@ -342,8 +342,8 @@ tr:hover td{background:#f8f9fe}
     <div class="page active" id="page-summary">
       <div class="metric-grid" id="metricRow"></div>
       <div class="period-tabs">
-        <button class="ptab active" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
-        <button class="ptab" onclick="setPeriod(this,'today')">วันนี้</button>
+        <button class="ptab" onclick="setPeriod(this,'hour')">รายชั่วโมง</button>
+        <button class="ptab active" onclick="setPeriod(this,'today')">วันนี้</button>
         <button class="ptab" onclick="setPeriod(this,'yesterday')">เมื่อวาน</button>
         <button class="ptab" onclick="setPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
         <button class="ptab" onclick="setPeriod(this,'month')">เดือน</button>
@@ -456,8 +456,8 @@ tr:hover td{background:#f8f9fe}
     <!-- COMPARE -->
     <div class="page" id="page-compare">
       <div class="period-tabs">
-        <button class="ptab active" onclick="setCmpPeriod(this,'hour')">รายชั่วโมง</button>
-        <button class="ptab" onclick="setCmpPeriod(this,'today')">วันนี้</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'hour')">รายชั่วโมง</button>
+        <button class="ptab active" onclick="setCmpPeriod(this,'today')">วันนี้</button>
         <button class="ptab" onclick="setCmpPeriod(this,'yesterday')">เมื่อวาน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'month')">เดือน</button>
@@ -759,7 +759,7 @@ let shopNames = [
   "หน่อง ธนา"
 ];
 let records = [];
-let periodTab = 'hour', cmpTab = 'hour';
+let periodTab = 'today', cmpTab = 'today';
 let summaryChart = null, compareChart = null;
 let isSyncing = false;
 let isEditingNames = false;
@@ -1053,11 +1053,19 @@ function init(){
     const eEl=document.getElementById('bHourEnd');
     if(parseInt(eEl.value)<=s) eEl.value=Math.min(s+1,23);
   });
+  // ─── reset วันที่ทั้งหมดเป็นวันปัจจุบันทุกครั้งที่เปิดเว็บ ───
   document.getElementById('inDate').value=today();
   const summaryDateEl=document.getElementById('summaryDate');
   if(summaryDateEl)summaryDateEl.value=today();
   buildHourSelector();
   buildCmpHourSelector();
+  // ซ่อน date/month/custom rows เพราะ default เป็น today
+  ['summaryDateRow','summaryMonthRow','customRangeRow'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display='none';
+  });
+  ['cmpDateRow','cmpMonthRow','cmpCustomRow'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.style.display='none';
+  });
   // แสดง hour filter ถ้า period=hour
   // hourFilterRow ถูกรวมเข้า summaryDateRow แล้ว
   document.getElementById('bDate').value=today();
@@ -1066,6 +1074,12 @@ function init(){
   document.getElementById('expDateTo').value=today();
   const cmpDateEl=document.getElementById('cmpDate');
   if(cmpDateEl)cmpDateEl.value=today();
+  // reset เดือนและ heatmap เป็นปัจจุบัน
+  var _nowDate = new Date();
+  var _mStr = _nowDate.getFullYear()+'-'+String(_nowDate.getMonth()+1).padStart(2,'0');
+  var smEl=document.getElementById('summaryMonth'); if(smEl) smEl.value=_mStr;
+  var cmEl=document.getElementById('cmpMonth'); if(cmEl) cmEl.value=_mStr;
+  var hmEl=document.getElementById('heatmapDate'); if(hmEl) hmEl.value=today();
   buildBatchInputs();
   loadAll();
   // Auto refresh
