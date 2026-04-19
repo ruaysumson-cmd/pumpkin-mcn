@@ -537,6 +537,9 @@ tr:hover td{background:#f8f9fe}
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 1v12M1 7h12"/></svg>
               เพิ่มช่อง
             </button>
+            <button class="btn btn-ghost" id="manualSyncBtn" onclick="manualSyncToCloud()" style="background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe">
+              ☁️ Sync ขึ้น Cloud
+            </button>
             <button class="btn btn-ghost" onclick="resetShopNames()">รีเซ็ตชื่อ</button>
             <button class="btn btn-primary" onclick="saveShopNames()">💾 บันทึกชื่อทั้งหมด</button>
           </div>
@@ -889,44 +892,71 @@ async function syncPhotosAndSettings(){
       apiCall('getSettings').catch(()=>({settings:{}}))
     ]);
 
-    // ─── Photos ───
+    // ─── Photos: cloud เสมอ ───
     const cloudPhotos = (photoRes && photoRes.photos) ? photoRes.photos : {};
     const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
 
     if(Object.keys(cloudPhotos).length > 0){
-      // cloud มีรูป → merge และ sync ลง local
-      const merged = {...localPhotos, ...cloudPhotos};
-      localStorage.setItem('pg_photos', JSON.stringify(merged));
-      window._photos = merged;
+      // ใช้ cloud เป็นหลัก
+      window._photos = cloudPhotos;
+      localStorage.setItem('pg_photos', JSON.stringify(cloudPhotos));
     } else if(Object.keys(localPhotos).length > 0){
-      // local มีรูปแต่ cloud ไม่มี → upload ขึ้น cloud (migration)
-      await apiCall('savePhotos', {photos: localPhotos}).catch(()=>{});
+      // cloud ว่าง แต่ local มี → upload ขึ้น cloud
+      try{ await apiCall('savePhotos', {photos: localPhotos}); }catch(e){}
       window._photos = localPhotos;
     } else {
       window._photos = {};
     }
 
-    // ─── Google Sheets URL ───
+    // ─── Sheets URL: cloud เสมอ ───
     const cloudUrl = settingsRes?.settings?.sheetsUrl || '';
     const localUrl = localStorage.getItem('pg_sheets_url') || '';
 
     if(cloudUrl){
-      // cloud มี URL → ใช้ cloud
-      localStorage.setItem('pg_sheets_url', cloudUrl);
       window._sheetsUrl = cloudUrl;
+      localStorage.setItem('pg_sheets_url', cloudUrl);
     } else if(localUrl){
-      // local มี URL แต่ cloud ไม่มี → upload ขึ้น cloud (migration)
-      await apiCall('saveSettings', {settings: {sheetsUrl: localUrl}}).catch(()=>{});
+      // cloud ว่าง แต่ local มี → upload ขึ้น cloud
+      try{ await apiCall('saveSettings', {key: 'sheetsUrl', value: localUrl}); }catch(e){}
       window._sheetsUrl = localUrl;
     }
 
-    // re-render ถ้ามีรูปใหม่
-    if(Object.keys(window._photos||{}).length > 0){
-      renderCurrentPage();
-    }
+    // re-render หน้าปัจจุบัน
+    renderCurrentPage();
+
   } catch(e) {
-    // ไม่แสดง error เพราะ non-critical
     console.log('syncPhotosAndSettings error:', e);
+  }
+}
+
+
+async function manualSyncToCloud(){
+  const btn = document.getElementById('manualSyncBtn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Sync...'; }
+  try{
+    const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
+    const localUrl = localStorage.getItem('pg_sheets_url') || window._sheetsUrl || '';
+    let photoCount = 0, urlOk = false;
+
+    // Upload photos
+    if(Object.keys(localPhotos).length > 0){
+      await apiCall('savePhotos', {photos: localPhotos});
+      window._photos = localPhotos;
+      photoCount = Object.keys(localPhotos).length;
+    }
+
+    // Upload sheets URL (format ถูกต้อง)
+    if(localUrl){
+      await apiCall('saveSettings', {key: 'sheetsUrl', value: localUrl});
+      window._sheetsUrl = localUrl;
+      urlOk = true;
+    }
+
+    toast(`✅ Sync สำเร็จ! รูป ${photoCount} ช่อง${urlOk?' | URL ✅':''}`, 'success');
+  } catch(e) {
+    toast('❌ Sync ไม่สำเร็จ: ' + e.message, 'error');
+  } finally {
+    if(btn){ btn.disabled=false; btn.textContent='☁️ Sync ขึ้น Cloud'; }
   }
 }
 
@@ -1629,8 +1659,8 @@ function clearFilter(){document.getElementById('histShop').value='all';document.
 // ==================== SETTINGS ====================
 // ==================== SHOP PHOTOS ====================
 function getShopPhotos(){
-  if(window._photos) return window._photos;
-  try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){ return {}; }
+  // cloud-first: ใช้ window._photos ที่โหลดจาก Google Sheets เสมอ
+  return window._photos || {};
 }
 function saveShopPhotos(photos){
   localStorage.setItem('pg_photos', JSON.stringify(photos));
@@ -1698,7 +1728,7 @@ function saveSheetsUrl(){
 }
 
 function getSheetsUrl(){
-  // ดึง URL จาก memory (cloud-synced) → localStorage → default
+  // cloud-first: ใช้ window._sheetsUrl ที่โหลดจาก Google Sheets เสมอ
   return window._sheetsUrl || localStorage.getItem('pg_sheets_url') || SHEETS_URL;
 }
 
