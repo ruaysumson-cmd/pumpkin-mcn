@@ -377,7 +377,7 @@ tr:hover td{background:#f8f9fe}
 
       <div class="chart-card">
         <div class="card-header"><span class="card-title">ยอดขายรวมทุกช่อง</span></div>
-        <div class="chart-wrap"><canvas id="summaryChart"></canvas></div>
+        <div class="chart-wrap" style="height:340px"><canvas id="summaryChart"></canvas></div>
       </div>
       <div class="section-label">ยอดขายแยกช่อง</div>
       <div class="shop-grid" id="shopGrid"></div>
@@ -1297,15 +1297,48 @@ function renderSummary(){
     <div class="metric-card" style="--ac:var(--accent2)"><div class="metric-label">ช่องทั้งหมด</div><div class="metric-value">28</div><div class="metric-sub">ช่อง</div></div>
     <div class="metric-card" style="--ac:#7c3aed"><div class="metric-label">ช่วงสูงสุด</div><div class="metric-value" style="font-size:18px">${labels[bestI]||'-'}</div><div class="metric-sub">${fmt(totals[bestI]||0)} บาท</div></div>
     <div class="metric-card" style="--ac:var(--accent3)"><div class="metric-label">เฉลี่ยต่อ${periodTab==='hour'?'ชม.':periodTab==='month'?'เดือน':'วัน'}</div><div class="metric-value">${fmt(Math.round(grand/(labels.length||1)))}</div><div class="metric-sub">บาท</div></div>`;
-  const pLabels = periodTab==='hour' ? labels : labels.map(l=>l.slice(5));
-  if(summaryChart)summaryChart.destroy();
-  summaryChart=new Chart(document.getElementById('summaryChart'),{
-    type:'bar',
-    data:{labels:pLabels,datasets:[{label:'ยอดขาย',data:totals,backgroundColor:'rgba(224,123,42,0.18)',borderColor:'#e07b2a',borderWidth:1.5,borderRadius:5,hoverBackgroundColor:'rgba(224,123,42,0.32)'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{
-      y:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}},
-      x:{ticks:{color:'#9096b0',font:{size:10,family:'IBM Plex Mono'},maxRotation:45,autoSkip:labels.length>12},grid:{display:false},border:{color:'#e2e4ec'}}}}
-  });
+  // hour → กราฟเวลาเดิม | อื่นๆ → กราฟทุกช่อง+รูป
+  if(periodTab==='hour'){
+    const pLabels=labels;
+    if(summaryChart)summaryChart.destroy();
+    summaryChart=new Chart(document.getElementById('summaryChart'),{type:'bar',data:{labels:pLabels,datasets:[{label:'ยอดขาย',data:totals,backgroundColor:'rgba(224,123,42,0.18)',borderColor:'#e07b2a',borderWidth:1.5,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:(_,i)=>pLabels[i],color:'#9096b0',font:{size:10,family:'IBM Plex Mono'},maxRotation:45},grid:{display:false},border:{color:'#e2e4ec'}},y:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}}}}});
+  } else {
+    // คำนวณยอดแต่ละช่อง
+    const shopTotals=shopNames.map((_,i)=>labels.reduce((sum,l)=>sum+sumFor(i,periodTab,l),0));
+    const sphotos=getShopPhotos();
+    const imgObjs=shopNames.map((_,i)=>{
+      const src=sphotos[i]; if(!src) return null;
+      const img=new Image(); img.src=src; return img;
+    });
+    const photoBarPlugin={
+      id:'pBP',
+      afterDatasetDraw(chart){
+        const {ctx}=chart; const R=14;
+        chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+          const img=imgObjs[i];
+          if(!img||!img.complete||!img.naturalWidth) return;
+          const cx=bar.x,cy=bar.y-R-3;
+          ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2); ctx.closePath(); ctx.clip();
+          ctx.drawImage(img,cx-R,cy-R,R*2,R*2); ctx.restore();
+          ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,R,0,Math.PI*2);
+          ctx.strokeStyle=CHART_COLORS[i]; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+        });
+      }
+    };
+    if(summaryChart)summaryChart.destroy();
+    summaryChart=new Chart(document.getElementById('summaryChart'),{
+      type:'bar',plugins:[photoBarPlugin],
+      data:{labels:shopNames,datasets:[{label:'ยอดขาย',data:shopTotals,backgroundColor:shopNames.map((_,i)=>CHART_COLORS[i]+'44'),borderColor:shopNames.map((_,i)=>CHART_COLORS[i]),borderWidth:1.5,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:36}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' ฿'+fmtFull(ctx.raw)}}},
+        scales:{
+          x:{ticks:{color:'#9096b0',font:{size:9,family:'IBM Plex Sans Thai'},maxRotation:45,callback(v,i){const n=shopNames[i];return n.length>5?n.slice(0,5)+'…':n;}},grid:{display:false},border:{color:'transparent'}},
+          y:{ticks:{callback:v=>fmt(v),color:'#9096b0',font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'},border:{color:'transparent'}}
+        }
+      }
+    });
+    imgObjs.forEach(img=>{ if(img&&!img.complete) img.onload=()=>{if(summaryChart)summaryChart.update('none');}; });
+  }
   // Update date label
   const selDate = getSelectedDate();
   const labelEl = document.getElementById('summaryDateLabel');
