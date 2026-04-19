@@ -203,6 +203,22 @@ tr:hover td{background:#f8f9fe}
   table{font-size:12px}
   th,td{padding:8px 10px}
 }
+
+/* ─── Heatmap ─── */
+.heatmap-wrap{overflow-x:auto;border-radius:16px;background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);box-shadow:0 4px 24px rgba(200,100,20,0.08)}
+.heatmap-table{border-collapse:separate;border-spacing:3px;min-width:1000px;width:100%;font-size:11px;padding:12px}
+.heatmap-table th{padding:8px 4px;text-align:center;background:transparent;color:var(--text3);font-weight:600;font-family:var(--mono);font-size:10px;white-space:nowrap;letter-spacing:.3px}
+.heatmap-table th:first-child{text-align:left;min-width:170px;padding-left:8px;color:var(--text2)}
+.heatmap-table td{padding:8px 4px;text-align:center;border-radius:8px;font-family:var(--mono);font-size:11px;white-space:nowrap;transition:all .2s;cursor:default}
+.heatmap-table td:first-child{text-align:left;background:transparent !important;font-family:var(--font);font-weight:500;color:var(--text);padding:4px 8px;border-radius:12px}
+.heatmap-table tr:hover td:not(:first-child){transform:scale(1.05);z-index:1;position:relative}
+.hm-empty{background:rgba(255,220,220,0.3);color:#dba0a0;font-size:10px}
+.hm-low{background:rgba(254,249,195,0.8);color:#a16207;font-weight:500}
+.hm-mid{background:rgba(187,247,208,0.8);color:#166534;font-weight:500}
+.hm-high{background:rgba(34,197,94,0.25);color:#14532d;font-weight:700;box-shadow:0 0 0 1.5px rgba(34,197,94,0.4)}
+.hm-total-col{background:linear-gradient(135deg,rgba(224,123,42,0.15),rgba(250,196,122,0.2));color:var(--golddark);font-weight:700;border-radius:10px}
+.hm-footer td{background:rgba(255,200,140,0.15) !important;font-weight:700;border-radius:8px}
+.hm-footer td:first-child{background:transparent !important;color:var(--golddark)}
 </style>
 </head>
 <body>
@@ -446,6 +462,7 @@ tr:hover td{background:#f8f9fe}
         <button class="ptab" onclick="setCmpPeriod(this,'7day')">ย้อนหลัง 7 วัน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'month')">เดือน</button>
         <button class="ptab" onclick="setCmpPeriod(this,'custom')">กำหนดเอง</button>
+        <button class="ptab" onclick="setCmpPeriod(this,'heatmap')">🌡️ ตาราง 24 ชม.</button>
       </div>
       <!-- Hour: เลือกวันที่ + ช่วงเวลา -->
       <div id="cmpDateRow" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
@@ -472,6 +489,20 @@ tr:hover td{background:#f8f9fe}
       </div>
       <div class="section-label">จัดอันดับทั้งหมด 35 ช่อง</div>
       <div class="rank-list" id="rankList"></div>
+
+      <!-- Heatmap Section -->
+      <div id="heatmapSection" style="display:none">
+        <div id="heatmapDateRow" style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.8px">วันที่:</span>
+          <input type="date" class="form-control" id="heatmapDate" style="width:auto" onchange="renderHeatmap()">
+          <button class="btn btn-ghost" style="font-size:12px" onclick="setHeatmapToday()">วันนี้</button>
+          <button class="btn btn-ghost" style="font-size:12px" onclick="setHeatmapYesterday()">เมื่อวาน</button>
+          <span style="font-size:11px;color:var(--text3)">💡 สีเขียว = ปกติ / เหลือง = ต่ำกว่าเฉลี่ย / แดง = ไม่มียอด</span>
+        </div>
+        <div id="heatmapWrap" class="heatmap-wrap">
+          <div id="heatmapTable"></div>
+        </div>
+      </div>
     </div>
 
     <!-- HISTORY -->
@@ -986,8 +1017,17 @@ function getYesterday(){
 }
 
 function getMonthDays(){
-  const d = new Date();
-  const year = d.getFullYear(), month = d.getMonth();
+  const monthEl = document.getElementById('summaryMonth');
+  let year, month;
+  if(monthEl && monthEl.value){
+    const parts = monthEl.value.split('-');
+    year = parseInt(parts[0]);
+    month = parseInt(parts[1]) - 1;
+  } else {
+    const d = new Date();
+    year = d.getFullYear();
+    month = d.getMonth();
+  }
   const days = [];
   const daysInMonth = new Date(year, month+1, 0).getDate();
   for(let i=1; i<=daysInMonth; i++){
@@ -995,6 +1035,7 @@ function getMonthDays(){
   }
   return days;
 }
+
 
 function getCustomRange(){
   const from = document.getElementById('customFrom')?.value;
@@ -1361,6 +1402,26 @@ function setCmpPeriod(btn,p){
   if(cmpDateRow)   cmpDateRow.style.display   = p==='hour'   ? 'flex' : 'none';
   if(cmpMonthRow)  cmpMonthRow.style.display  = p==='month'  ? 'flex' : 'none';
   if(cmpCustomRow) cmpCustomRow.style.display = p==='custom' ? 'flex' : 'none';
+  // heatmap section
+  const heatmapSection = document.getElementById('heatmapSection');
+  const chartSection = document.getElementById('compareChart')?.closest('.chart-card');
+  const rankSection = document.querySelector('.rank-list');
+  const rankLabel = rankSection?.previousElementSibling;
+  if(p==='heatmap'){
+    if(heatmapSection) heatmapSection.style.display='block';
+    if(chartSection) chartSection.style.display='none';
+    if(rankSection) rankSection.style.display='none';
+    if(rankLabel) rankLabel.style.display='none';
+    const d=document.getElementById('heatmapDate');
+    if(d&&!d.value) d.value=today();
+    renderHeatmap();
+    return;
+  } else {
+    if(heatmapSection) heatmapSection.style.display='none';
+    if(chartSection) chartSection.style.display='';
+    if(rankSection) rankSection.style.display='';
+    if(rankLabel) rankLabel.style.display='';
+  }
 
   if(p==='hour'){
     buildCmpHourSelector();
@@ -2371,6 +2432,97 @@ function resetCmpMonth(){
   const el=document.getElementById('cmpMonth');
   if(el){const d=new Date();el.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
   renderCompare();
+}
+
+
+// ==================== HEATMAP ====================
+function setHeatmapToday(){
+  const d=document.getElementById('heatmapDate');
+  if(d) d.value=today();
+  renderHeatmap();
+}
+function setHeatmapYesterday(){
+  const d=document.getElementById('heatmapDate');
+  if(d){ const dt=new Date(); dt.setDate(dt.getDate()-1); d.value=dt.toISOString().slice(0,10); }
+  renderHeatmap();
+}
+
+function renderHeatmap(){
+  const dateVal = document.getElementById('heatmapDate')?.value || today();
+  const wrap = document.getElementById('heatmapTable');
+  if(!wrap) return;
+
+  // คำนวณยอดแต่ละช่อง แต่ละชั่วโมง
+  const hours = Array.from({length:24},(_,i)=>i);
+  const data = shopNames.map((name,si)=>{
+    const row = hours.map(h=>{
+      return records.filter(r=>
+        r.shop===si &&
+        String(r.date).slice(0,10)===dateVal &&
+        parseInt(r.hourStart)===h
+      ).reduce((a,b)=>a+b.amount,0);
+    });
+    const total = row.reduce((a,b)=>a+b,0);
+    return {name, row, total};
+  });
+
+  // คำนวณค่าเฉลี่ยต่อ cell (เพื่อทำ heatmap สี)
+  const allVals = data.flatMap(d=>d.row).filter(v=>v>0);
+  const avg = allVals.length ? allVals.reduce((a,b)=>a+b,0)/allVals.length : 0;
+  const maxVal = Math.max(...allVals, 1);
+
+  // สร้าง header
+  let html = '<table class="heatmap-table"><thead><tr>';
+  html += '<th style="font-size:11px;color:var(--text2)">ช่อง</th>';
+  hours.forEach(h=>{
+    html += `<th>${String(h).padStart(2,'0')}:00-${String(h+1).padStart(2,'0')}:00</th>`;;
+  });
+  html += '<th class="hm-total">รวม</th>';
+  html += '</tr></thead><tbody>';
+
+  // สร้าง rows
+  const hmPhotos = getShopPhotos();
+  data.forEach(({name, row, total},si)=>{
+    const photo = hmPhotos[si];
+    const avatar = photo
+      ? `<img src="${photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(224,123,42,0.5);flex-shrink:0;box-shadow:0 2px 8px rgba(200,100,20,0.15)">`
+      : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--goldlt),rgba(224,123,42,0.15));border:2px dashed var(--gold);display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🎭</div>`;
+    html += '<tr>';
+    html += `<td><div style="display:flex;align-items:center;gap:10px">
+      ${avatar}
+      <div>
+        <div style="font-weight:600;font-size:12px;color:var(--text)">${name}</div>
+      </div>
+    </div></td>`;
+    row.forEach(val=>{
+      let cls = 'hm-empty';
+      let display = '-';
+      if(val > 0){
+        display = fmt(val);
+        const ratio = val / avg;
+        if(ratio >= 1.5) cls = 'hm-high';
+        else if(ratio >= 0.7) cls = 'hm-mid';
+        else cls = 'hm-low';
+      }
+      html += `<td class="${cls}" title="${val>0?fmtFull(val)+' ฿':'-'}">${display}</td>`;
+    });
+    html += `<td class="hm-total-col">${total>0?fmt(total):'-'}</td>`;
+    html += '</tr>';
+  });
+
+  // footer รวมรายชั่วโมง
+  html += '<tr class="hm-footer">';
+  html += '<td><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">📊</span><span style="font-weight:700;color:var(--golddark);font-size:12px">รวมทุกช่อง</span></div></td>';
+  hours.forEach(h=>{
+    const sum = data.reduce((a,d)=>a+d.row[h],0);
+    html += `<td class="${sum>0?'hm-total-col':''}" style="font-weight:${sum>0?'600':'400'}">${sum>0?fmt(sum):'-'}</td>`;
+  });
+  const grandTotal = data.reduce((a,d)=>a+d.total,0);
+  html += `<td class="hm-total-col" style="font-size:13px">${fmt(grandTotal)}</td>`;
+  html += '</tr>';
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
 }
 
 // ==================== STARTUP ====================
