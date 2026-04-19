@@ -836,18 +836,16 @@ async function loadAll(silent=false){
   if(!silent) document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('syncBanner').classList.add('show');
   try {
-    const [recRes, nameRes, photoRes, settingsRes] = await Promise.all([
+    // ─── โหลดข้อมูลหลัก (critical) ───
+    const [recRes, nameRes] = await Promise.all([
       apiCall('getAll'),
-      apiCall('getShopNames'),
-      apiCall('getPhotos'),
-      apiCall('getSettings')
+      apiCall('getShopNames')
     ]);
     if(recRes.records) records = recRes.records.map(r=>({
       shop: parseInt(r.shop),
       date: (()=>{
         const d = String(r.date);
         if(d.includes('T')){
-          // Google Sheets ส่งมาเป็น UTC — แปลงเป็น Bangkok (UTC+7)
           const dt = new Date(d);
           dt.setTime(dt.getTime() + 7*60*60*1000);
           return dt.toISOString().slice(0,10);
@@ -863,6 +861,7 @@ async function loadAll(silent=false){
     }));
     if(nameRes.names && nameRes.names.length===SHOP_COUNT){
       shopNames = nameRes.names;
+      localStorage.setItem('pg_shopnames', JSON.stringify(shopNames));
       rebuildSelects();
       buildBatchInputs();
     }
@@ -877,6 +876,57 @@ async function loadAll(silent=false){
     document.getElementById('syncBanner').classList.remove('show');
     if(!silent) document.getElementById('loadingOverlay').classList.add('hidden');
     isSyncing=false;
+  }
+
+  // ─── โหลด photos + settings (non-critical, แยกออกมาเพื่อไม่กระทบหลัก) ───
+  syncPhotosAndSettings();
+}
+
+async function syncPhotosAndSettings(){
+  try {
+    const [photoRes, settingsRes] = await Promise.all([
+      apiCall('getPhotos').catch(()=>({photos:{}})),
+      apiCall('getSettings').catch(()=>({settings:{}}))
+    ]);
+
+    // ─── Photos ───
+    const cloudPhotos = (photoRes && photoRes.photos) ? photoRes.photos : {};
+    const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
+
+    if(Object.keys(cloudPhotos).length > 0){
+      // cloud มีรูป → merge และ sync ลง local
+      const merged = {...localPhotos, ...cloudPhotos};
+      localStorage.setItem('pg_photos', JSON.stringify(merged));
+      window._photos = merged;
+    } else if(Object.keys(localPhotos).length > 0){
+      // local มีรูปแต่ cloud ไม่มี → upload ขึ้น cloud (migration)
+      await apiCall('savePhotos', {photos: localPhotos}).catch(()=>{});
+      window._photos = localPhotos;
+    } else {
+      window._photos = {};
+    }
+
+    // ─── Google Sheets URL ───
+    const cloudUrl = settingsRes?.settings?.sheetsUrl || '';
+    const localUrl = localStorage.getItem('pg_sheets_url') || '';
+
+    if(cloudUrl){
+      // cloud มี URL → ใช้ cloud
+      localStorage.setItem('pg_sheets_url', cloudUrl);
+      window._sheetsUrl = cloudUrl;
+    } else if(localUrl){
+      // local มี URL แต่ cloud ไม่มี → upload ขึ้น cloud (migration)
+      await apiCall('saveSettings', {settings: {sheetsUrl: localUrl}}).catch(()=>{});
+      window._sheetsUrl = localUrl;
+    }
+
+    // re-render ถ้ามีรูปใหม่
+    if(Object.keys(window._photos||{}).length > 0){
+      renderCurrentPage();
+    }
+  } catch(e) {
+    // ไม่แสดง error เพราะ non-critical
+    console.log('syncPhotosAndSettings error:', e);
   }
 }
 
