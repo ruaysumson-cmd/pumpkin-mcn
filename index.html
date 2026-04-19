@@ -2367,6 +2367,12 @@ function navigate(page){
   if(page==='entry') buildBatchInputs();
 }
 
+function resetCmpMonth(){
+  const el=document.getElementById('cmpMonth');
+  if(el){const d=new Date();el.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+  renderCompare();
+}
+
 // ==================== STARTUP ====================
 document.addEventListener('DOMContentLoaded', function(){
   // ซ่อน loading overlay ก่อนเสมอ
