@@ -933,30 +933,39 @@ async function syncPhotosAndSettings(){
 async function manualSyncToCloud(){
   const btn = document.getElementById('manualSyncBtn');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Sync...'; }
-  try{
-    const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
-    const localUrl = localStorage.getItem('pg_sheets_url') || window._sheetsUrl || '';
-    let photoCount = 0, urlOk = false;
+  
+  const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
+  const localUrl = localStorage.getItem('pg_sheets_url') || window._sheetsUrl || '';
+  let photoCount = 0, urlOk = false, errors = [];
 
-    // Upload photos
-    if(Object.keys(localPhotos).length > 0){
-      await apiCall('savePhotos', {photos: localPhotos});
-      window._photos = localPhotos;
-      photoCount = Object.keys(localPhotos).length;
-    }
-
-    // Upload sheets URL (format ถูกต้อง)
-    if(localUrl){
-      await apiCall('saveSettings', {key: 'sheetsUrl', value: localUrl});
+  // 1. Sync URL ก่อน (เบาที่สุด)
+  if(localUrl){
+    try{
+      await apiCall('saveSettings', {key:'sheetsUrl', value:localUrl});
       window._sheetsUrl = localUrl;
       urlOk = true;
-    }
+    } catch(e){ errors.push('URL: '+e.message); }
+  }
 
+  // 2. Sync รูปทีละช่อง (ไม่ส่งพร้อมกันเพราะอาจใหญ่เกิน)
+  const photoEntries = Object.entries(localPhotos);
+  for(const [idx, photo] of photoEntries){
+    try{
+      await apiCall('savePhotos', {photos: {[idx]: photo}});
+      photoCount++;
+      if(btn) btn.textContent = `⏳ Sync รูป ${photoCount}/${photoEntries.length}...`;
+    } catch(e){ errors.push(`รูปช่อง ${idx}: ${e.message}`); }
+  }
+
+  window._photos = localPhotos;
+
+  if(btn){ btn.disabled=false; btn.textContent='☁️ Sync ขึ้น Cloud'; }
+
+  if(errors.length === 0){
     toast(`✅ Sync สำเร็จ! รูป ${photoCount} ช่อง${urlOk?' | URL ✅':''}`, 'success');
-  } catch(e) {
-    toast('❌ Sync ไม่สำเร็จ: ' + e.message, 'error');
-  } finally {
-    if(btn){ btn.disabled=false; btn.textContent='☁️ Sync ขึ้น Cloud'; }
+  } else {
+    toast(`⚠️ Sync บางส่วน: รูป ${photoCount}/${photoEntries.length}${urlOk?' URL ✅':' URL ❌'}
+Error: ${errors[0]}`, 'error');
   }
 }
 
