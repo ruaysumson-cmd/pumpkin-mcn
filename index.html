@@ -378,6 +378,7 @@ tr:hover td{background:#f8f9fe}
       <div class="chart-card">
         <div class="card-header"><span class="card-title">ยอดขายรวมทุกช่อง</span></div>
         <div class="chart-wrap" style="height:340px"><canvas id="summaryChart"></canvas></div>
+        <div id="summaryRankList" style="display:none"></div>
       </div>
       <div class="section-label">ยอดขายแยกช่อง</div>
       <div class="shop-grid" id="shopGrid"></div>
@@ -1508,7 +1509,7 @@ async function saveBatch(){
   const toSave=[];
   shopNames.forEach((_,i)=>{
     const val=parseFloat(document.getElementById('bi_'+i)?.value);
-    if(!isNaN(val)&&val>=0)toSave.push({shop:i,date,hour,amount:val});
+    if(!isNaN(val)&&val>0)toSave.push({shop:i,date,hourStart,hourEnd,timeRange:fmtTimeRange(hourStart,hourEnd),amount:val,staff:currentSession()?.displayName||'Web User'});
   });
   if(!toSave.length){toast('ยังไม่ได้กรอกยอดขาย','error');return;}
   const btn=document.getElementById('batchSaveBtn');
@@ -2007,15 +2008,24 @@ const DEFAULT_USERS = [
 ];
 
 function getUsers(){
-  // ใช้ DEFAULT_USERS ตายตัวเสมอ (ไม่ดึงจาก localStorage เพื่อป้องกัน override)
+  // ถ้ามีใน memory แล้ว ใช้เลย
   if(window._runtimeUsers) return window._runtimeUsers;
+  // ลอง load จาก localStorage (ผู้ใช้แก้ไขแล้ว reload)
+  try{
+    const saved = localStorage.getItem('pg_users');
+    if(saved){
+      const parsed = JSON.parse(saved);
+      if(Array.isArray(parsed) && parsed.length > 0){
+        window._runtimeUsers = parsed;
+        return parsed;
+      }
+    }
+  }catch(e){}
+  // fallback: DEFAULT_USERS
   return DEFAULT_USERS;
 }
 
-// ล้าง pg_users เก่าออกจาก localStorage เพื่อป้องกัน conflict
-(function clearOldUsers(){
-  try{ localStorage.removeItem('pg_users'); }catch(e){}
-})();
+// หมายเหตุ: ไม่ล้าง pg_users เพราะใช้เก็บ user ที่แก้ไขแล้ว
 
 // โหลดชื่อช่องที่บันทึกไว้ใน localStorage (ถ้ามี)
 (function loadSavedShopNames(){
