@@ -555,7 +555,11 @@ tr:hover td{background:#f8f9fe}
           </div>
           <button class="btn btn-primary" onclick="addUserRow()">+ เพิ่มผู้ใช้</button>
         </div>
-        <div id="userList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+        <div id="userList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="saveUsers()" style="font-size:12px">💾 บันทึกผู้ใช้ทั้งหมด</button>
+          <button class="btn btn-ghost" onclick="resetUsersToDefault()" style="font-size:12px;color:#dc2626;border-color:#fca5a5">↺ รีเซ็ตเป็นค่าตั้งต้น</button>
+        </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
           💡 role: <code>admin</code> = เห็นจัดการผู้ใช้ / <code>user</code> = ใช้งานทั่วไป
         </div>
@@ -2010,17 +2014,24 @@ const DEFAULT_USERS = [
 function getUsers(){
   // ถ้ามีใน memory แล้ว ใช้เลย
   if(window._runtimeUsers) return window._runtimeUsers;
-  // ลอง load จาก localStorage (ผู้ใช้แก้ไขแล้ว reload)
+  // ลอง load จาก localStorage
   try{
     const saved = localStorage.getItem('pg_users');
     if(saved){
       const parsed = JSON.parse(saved);
-      if(Array.isArray(parsed) && parsed.length > 0){
+      // validate: ต้องเป็น array, มีข้อมูล, ทุก user มี username+password
+      if(Array.isArray(parsed) && parsed.length > 0 &&
+         parsed.every(u => u && u.username && u.password)){
         window._runtimeUsers = parsed;
         return parsed;
+      } else {
+        // ข้อมูลเสีย → ล้างออก
+        localStorage.removeItem('pg_users');
       }
     }
-  }catch(e){}
+  }catch(e){
+    localStorage.removeItem('pg_users');
+  }
   // fallback: DEFAULT_USERS
   return DEFAULT_USERS;
 }
@@ -2179,6 +2190,14 @@ function saveUsers(){
   toast('✅ บันทึกผู้ใช้งานทั้งหมดแล้วค่ะ (' + updated.length + ' คน)');
 }
 
+
+function resetUsersToDefault(){
+  if(!confirm('รีเซ็ตผู้ใช้กลับเป็นค่าตั้งต้น? (poppy, แบงค์, kung)')) return;
+  localStorage.removeItem('pg_users');
+  window._runtimeUsers = null;
+  renderUserList();
+  toast('✅ รีเซ็ตผู้ใช้งานแล้วค่ะ');
+}
 
 // ==================== IMAGE CROP ====================
 let cropState = {
