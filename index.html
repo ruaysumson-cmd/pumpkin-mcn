@@ -2152,15 +2152,31 @@ function removeUser(idx){
 }
 
 function saveUsers(){
-  const users = getUsers();
-  const updated = users.map((_,i) => ({
-    displayName: document.getElementById('uname_'+i)?.value?.trim() || _.displayName,
-    username:    document.getElementById('uuser_'+i)?.value?.trim() || _.username,
-    password:    document.getElementById('upass_'+i)?.value?.trim() || _.password,
-    role:        document.getElementById('urole_'+i)?.value || _.role || 'user',
-  }));
+  // อ่านจาก DOM โดยตรง นับจากจำนวน input ที่มีใน #userList
+  const updated = [];
+  let i = 0;
+  while(document.getElementById('uuser_'+i)){
+    const displayName = document.getElementById('uname_'+i)?.value?.trim();
+    const username    = document.getElementById('uuser_'+i)?.value?.trim();
+    const password    = document.getElementById('upass_'+i)?.value?.trim();
+    const role        = document.getElementById('urole_'+i)?.value || 'user';
+    if(username && password){
+      updated.push({displayName, username, password, role});
+    }
+    i++;
+  }
+  if(updated.length === 0){
+    toast('❌ ไม่มีผู้ใช้งานที่จะบันทึก','error');
+    return;
+  }
+  // ตรวจว่า poppy ยังอยู่ในระบบ
+  const hasAdmin = updated.some(u => u.role === 'admin');
+  if(!hasAdmin){
+    toast('❌ ต้องมี Admin อย่างน้อย 1 คนค่ะ','error');
+    return;
+  }
   saveUsersData(updated);
-  toast('✅ บันทึกผู้ใช้งานทั้งหมดแล้วค่ะ');
+  toast('✅ บันทึกผู้ใช้งานทั้งหมดแล้วค่ะ (' + updated.length + ' คน)');
 }
 
 
