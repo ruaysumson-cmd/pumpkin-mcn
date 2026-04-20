@@ -500,7 +500,13 @@ tr:hover td{background:#f8f9fe}
           <input type="date" class="form-control" id="heatmapDate" style="width:auto" onchange="renderHeatmap()">
           <button class="btn btn-ghost" style="font-size:12px" onclick="setHeatmapToday()">วันนี้</button>
           <button class="btn btn-ghost" style="font-size:12px" onclick="setHeatmapYesterday()">เมื่อวาน</button>
-          <span style="font-size:11px;color:var(--text3)">💡 สีเขียว = ปกติ / เหลือง = ต่ำกว่าเฉลี่ย / แดง = ไม่มียอด</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:11px">
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(59,130,246,0.2);border:1px solid #60a5fa;display:inline-block"></span><span style="color:var(--text3)">ยังไม่ได้บันทึก</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(239,68,68,0.2);border:1px solid #ef4444;display:inline-block"></span><span style="color:var(--text3)">ยอด ฿0</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(254,249,195,0.9);border:1px solid #ca8a04;display:inline-block"></span><span style="color:var(--text3)">ต่ำกว่าเฉลี่ย</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(187,247,208,0.9);border:1px solid #16a34a;display:inline-block"></span><span style="color:var(--text3)">ปกติ</span></span>
+            <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(34,197,94,0.3);border:1px solid #15803d;display:inline-block"></span><span style="color:var(--text3)">สูงกว่าเฉลี่ย</span></span>
+          </div>
         </div>
         <div id="heatmapWrap" class="heatmap-wrap">
           <div id="heatmapTable"></div>
@@ -559,7 +565,6 @@ tr:hover td{background:#f8f9fe}
         </div>
         <div id="userList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="saveUsers()" style="font-size:12px">💾 บันทึกผู้ใช้ทั้งหมด</button>
           <button class="btn btn-ghost" onclick="resetUsersToDefault()" style="font-size:12px;color:#dc2626;border-color:#fca5a5">↺ รีเซ็ตเป็นค่าตั้งต้น</button>
         </div>
         <div style="font-size:11px;color:var(--text3);margin-bottom:12px">
@@ -2199,6 +2204,19 @@ function resetUsersToDefault(){
   window._runtimeUsers = null;
   renderUserList();
   toast('✅ รีเซ็ตผู้ใช้งานแล้วค่ะ');
+}
+
+function addNewUser(){
+  const users = getUsers();
+  const updated = [...users, {
+    displayName: 'ผู้ใช้ใหม่',
+    username: 'user' + Date.now().toString().slice(-4),
+    password: 'pass1234',
+    role: 'user'
+  }];
+  saveUsersData(updated);
+  renderUserList();
+  toast('✅ เพิ่มผู้ใช้งานแล้วค่ะ กรุณาแก้ไข username/password');
 }
 
 // ==================== IMAGE CROP ====================
