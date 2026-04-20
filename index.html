@@ -212,7 +212,9 @@ tr:hover td{background:#f8f9fe}
 .heatmap-table td{padding:8px 4px;text-align:center;border-radius:8px;font-family:var(--mono);font-size:11px;white-space:nowrap;transition:all .2s;cursor:default}
 .heatmap-table td:first-child{text-align:left;background:transparent !important;font-family:var(--font);font-weight:500;color:var(--text);padding:4px 8px;border-radius:12px}
 .heatmap-table tr:hover td:not(:first-child){transform:scale(1.05);z-index:1;position:relative}
-.hm-empty{background:rgba(255,220,220,0.3);color:#dba0a0;font-size:10px}
+.hm-none{background:rgba(59,130,246,0.1);color:#60a5fa;font-size:10px}
+.hm-zero{background:rgba(239,68,68,0.15);color:#ef4444;font-weight:600;font-size:11px}
+.hm-empty{background:rgba(255,100,100,0.12);color:#f87171;font-size:10px}
 .hm-low{background:rgba(254,249,195,0.8);color:#a16207;font-weight:500}
 .hm-mid{background:rgba(187,247,208,0.8);color:#166534;font-weight:500}
 .hm-high{background:rgba(34,197,94,0.25);color:#14532d;font-weight:700;box-shadow:0 0 0 1.5px rgba(34,197,94,0.4)}
@@ -2670,13 +2672,15 @@ function renderHeatmap(){
   const hours = Array.from({length:24},(_,i)=>i);
   const data = shopNames.map((name,si)=>{
     const row = hours.map(h=>{
-      return records.filter(r=>
+      const recs = records.filter(r=>
         r.shop===si &&
         String(r.date).slice(0,10)===dateVal &&
         parseInt(r.hourStart)===h
-      ).reduce((a,b)=>a+b.amount,0);
+      );
+      // -1 = ยังไม่มี record, 0+ = มี record (อาจยอด 0)
+      return recs.length === 0 ? -1 : recs.reduce((a,b)=>a+b.amount, 0);
     });
-    const total = row.reduce((a,b)=>a+b,0);
+    const total = row.reduce((a,b)=>a+(b>0?b:0),0);
     return {name, row, total};
   });
 
@@ -2709,16 +2713,27 @@ function renderHeatmap(){
       </div>
     </div></td>`;
     row.forEach(val=>{
-      let cls = 'hm-empty';
-      let display = '-';
-      if(val > 0){
+      let cls, display, titleTxt;
+      if(val === -1){
+        // ยังไม่มี record เลย → น้ำเงิน
+        display = '<span style="font-size:9px;white-space:nowrap">ยังไม่ได้<br>บันทึก</span>';
+        titleTxt = 'ยังไม่ได้บันทึกยอด';
+        cls = 'hm-none';
+      } else if(val === 0){
+        // มี record แต่ยอด 0 → แดง
+        display = '฿0';
+        titleTxt = 'บันทึกยอด 0 บาท';
+        cls = 'hm-zero';
+      } else {
+        // มียอด → สีตามสัดส่วน
         display = fmt(val);
+        titleTxt = fmtFull(val) + ' ฿';
         const ratio = val / avg;
-        if(ratio >= 1.5) cls = 'hm-high';
+        if(ratio >= 1.5)      cls = 'hm-high';
         else if(ratio >= 0.7) cls = 'hm-mid';
-        else cls = 'hm-low';
+        else                   cls = 'hm-low';
       }
-      html += `<td class="${cls}" title="${val>0?fmtFull(val)+' ฿':'-'}">${display}</td>`;
+      html += `<td class="${cls}" title="${titleTxt}">${display}</td>`;
     });
     html += `<td class="hm-total-col">${total>0?fmt(total):'-'}</td>`;
     html += '</tr>';
@@ -2728,7 +2743,7 @@ function renderHeatmap(){
   html += '<tr class="hm-footer">';
   html += '<td><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">📊</span><span style="font-weight:700;color:var(--golddark);font-size:12px">รวมทุกช่อง</span></div></td>';
   hours.forEach(h=>{
-    const sum = data.reduce((a,d)=>a+d.row[h],0);
+    const sum = data.reduce((a,d)=>{ const v=d.row[h]; return a+(v>0?v:0); },0);
     html += `<td class="${sum>0?'hm-total-col':''}" style="font-weight:${sum>0?'600':'400'}">${sum>0?fmt(sum):'-'}</td>`;
   });
   const grandTotal = data.reduce((a,d)=>a+d.total,0);
