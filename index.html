@@ -728,7 +728,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbz2QmLrMRJ4EtnRrYLd-009RzeEvOF0LxM_up9c24H8v0Bs4lcq1N8zKGjnn78mKq1N/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw2pdYT4h8obo1_R4KnHClj-W6OPj-zbARtEr1PRTE6fZY1dkjIOXiwX-8vhGTiY56J/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -822,14 +822,18 @@ function setLastSync(){
 async function apiCall(action, body={}){
   const payload={action,...body};
   try {
-    // Google Apps Script ต้องใช้ redirect:'follow' เพื่อรองรับ redirect
+    // timeout 15 วินาที
+    const controller = new AbortController();
+    const tid = setTimeout(()=>controller.abort(), 15000);
     const res = await fetch(API_URL, {
       method:'POST',
       body: JSON.stringify(payload),
       headers:{'Content-Type':'text/plain'},
       redirect:'follow',
-      mode:'cors'
+      mode:'cors',
+      signal: controller.signal
     });
+    clearTimeout(tid);
     const data = await res.json();
     return data;
   } catch(e) {
@@ -1756,15 +1760,21 @@ function renderHistory(){
 }
 
 async function delRecord(shop,date,hourStart,hourEnd){
+  if(!confirm('ยืนยันลบข้อมูลนี้?')) return;
   setSyncStatus('syncing');
   try {
-    await apiCall('deleteRecord',{shop,date,hourStart,hourEnd});
-    records=records.filter(r=>!(r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd));
-    setSyncStatus('online'); setLastSync();
-    renderHistory(); toast('ลบข้อมูลแล้ว','error');
+    const res = await apiCall('deleteRecord',{shop,date,hourStart,hourEnd});
+    if(res && res.success === true){
+      records=records.filter(r=>!(r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd));
+      setSyncStatus('online'); setLastSync();
+      renderHistory(); toast('✅ ลบข้อมูลแล้วค่ะ');
+    } else {
+      setSyncStatus('online');
+      toast('❌ ลบไม่สำเร็จ: '+((res&&res.error)||'ไม่พบข้อมูล'),'error');
+    }
   } catch(e){
     setSyncStatus('offline');
-    toast('❌ ลบไม่สำเร็จ','error');
+    toast('❌ ลบไม่สำเร็จ กรุณาลองใหม่','error');
   }
 }
 function clearFilter(){document.getElementById('histShop').value='all';document.getElementById('histDate').value='';renderHistory();}
@@ -2638,7 +2648,7 @@ function addRetroRow(){
 
 
 
-function saveRetroEntry(){
+async function saveRetroEntry(){
   const shop=parseInt(document.getElementById('retroShop')?.value);
   const date=document.getElementById('retroDate')?.value;
   if(!date){toast('กรุณาเลือกวันที่ค่ะ','error');return;}
@@ -2655,16 +2665,18 @@ function saveRetroEntry(){
     const staff=currentSession()?.displayName||'Web User';
     entries.push({shop,date,hourStart,hourEnd,timeRange:fmtTimeRange(hourStart,hourEnd),amount,staff});
   }
+  if(!entries.length){toast('กรุณากรอกข้อมูลให้ครบค่ะ','error');return;}
   const btn=document.getElementById('retroSaveBtn');
   if(btn){btn.disabled=true;btn.textContent='⏳ กำลังบันทึก...';}
   setSyncStatus('syncing');
-  Promise.all(entries.map(e=>apiCall('saveRecord',e))).then(results=>{
+  try {
+    const results = await Promise.all(entries.map(e=>apiCall('saveRecord',e)));
     let saved=0,dupes=0;
     results.forEach((res,i)=>{
       if(res.action==='duplicate'){dupes++;return;}
       const r=entries[i];
-      const idx=records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hourStart===r.hourStart&&x.hourEnd===r.hourEnd);
-      if(idx>=0)records[idx].amount=r.amount;else records.push(r);
+      const ix=records.findIndex(x=>x.shop===r.shop&&x.date===r.date&&x.hourStart===r.hourStart&&x.hourEnd===r.hourEnd);
+      if(ix>=0)records[ix].amount=r.amount;else records.push(r);
       saved++;
     });
     setSyncStatus('online');setLastSync();
@@ -2672,10 +2684,12 @@ function saveRetroEntry(){
     retroRowCount=0;addRetroRow();
     let msg='✅ บันทึกย้อนหลัง '+saved+' ช่วงสำเร็จค่ะ';
     if(dupes>0)msg+=' (ซ้ำ '+dupes+' ช่วง)';
-    toast(msg);renderSummary();
-  }).catch(()=>{
+    toast(msg);renderCurrentPage();
+  } catch(e){
     setSyncStatus('offline');toast('❌ บันทึกไม่สำเร็จ กรุณาลองใหม่','error');
-  }).finally(()=>{if(btn){btn.disabled=false;btn.textContent='💾 บันทึกย้อนหลัง';}});
+  } finally {
+    if(btn){btn.disabled=false;btn.textContent='💾 บันทึกย้อนหลัง';}
+  }
 }
 
 function resetSummaryMonth(){
