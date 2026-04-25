@@ -213,6 +213,29 @@ tr:hover td{background:#f8f9fe}
 .heatmap-table td:first-child{text-align:left;background:transparent !important;font-family:var(--font);font-weight:500;color:var(--text);padding:4px 8px;border-radius:12px}
 .heatmap-table tr:hover td:not(:first-child){transform:scale(1.05);z-index:1;position:relative}
 .hm-none{background:rgba(59,130,246,0.1);color:#60a5fa;font-size:10px}
+.hm-tip{cursor:default}
+#hmTooltip{
+  position:fixed;display:none;z-index:9999;
+  background:rgba(15,15,25,0.97);
+  color:#fff;font-size:12px;line-height:2;
+  padding:12px 16px;border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  pointer-events:none;white-space:pre;
+  border:1px solid rgba(255,255,255,0.12);
+  max-width:280px;font-family:var(--font);
+  backdrop-filter:blur(8px);
+}
+.hm-tip{cursor:pointer;position:relative}
+#hmTooltip{
+  position:fixed;display:none;z-index:9999;
+  background:rgba(20,20,30,0.96);
+  color:#fff;font-size:12px;line-height:1.8;
+  padding:10px 14px;border-radius:10px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+  pointer-events:none;white-space:pre;
+  border:1px solid rgba(255,255,255,0.1);
+  max-width:260px;font-family:var(--font);
+}
 .hm-zero{background:rgba(239,68,68,0.15);color:#ef4444;font-weight:600;font-size:11px}
 .hm-empty{background:rgba(255,100,100,0.12);color:#f87171;font-size:10px}
 .hm-low{background:rgba(254,249,195,0.8);color:#a16207;font-weight:500}
@@ -636,6 +659,7 @@ tr:hover td{background:#f8f9fe}
   </div>
 </div>
 <!-- CONFIRM MODAL -->
+<div id="hmTooltip"></div>
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-title">ยืนยันการล้างข้อมูลยอดขาย</div>
@@ -728,7 +752,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbw2pdYT4h8obo1_R4KnHClj-W6OPj-zbARtEr1PRTE6fZY1dkjIOXiwX-8vhGTiY56J/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbykdY_eglollVpl1aF5hxmt83eSo83HTgFC2VnPNNAqHY-XDcpsLjh0Ubpkhzc1iN4t/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -899,6 +923,53 @@ async function loadAll(silent=false){
 
   // ─── โหลด photos + settings (non-critical, แยกออกมาเพื่อไม่กระทบหลัก) ───
   syncPhotosAndSettings();
+  // ─── Heatmap tooltip ───
+  const _hmTip = document.getElementById('hmTooltip');
+  if(_hmTip){
+    document.addEventListener('mouseover', function(e){
+      const td = e.target.closest('td.hm-tip');
+      if(!td) return;
+      const txt = td.getAttribute('data-tip');
+      if(!txt || txt==='ยังไม่ได้บันทึกยอด') return;
+      _hmTip.textContent = txt;
+      _hmTip.style.display = 'block';
+    });
+    document.addEventListener('mousemove', function(e){
+      if(_hmTip.style.display==='block'){
+        const x=e.clientX+16, y=e.clientY+16;
+        const bw=_hmTip.offsetWidth, bh=_hmTip.offsetHeight;
+        _hmTip.style.left=(x+bw>window.innerWidth?x-bw-32:x)+'px';
+        _hmTip.style.top=(y+bh>window.innerHeight?y-bh-32:y)+'px';
+      }
+    });
+    document.addEventListener('mouseout', function(e){
+      if(e.target.closest('td.hm-tip')) _hmTip.style.display='none';
+    });
+  }
+  // ─── heatmap tooltip ───
+  const hmTip = document.getElementById('hmTooltip');
+  document.addEventListener('mouseover', function(e){
+    const td = e.target.closest('td.hm-tip');
+    if(!td || !hmTip) return;
+    const txt = td.getAttribute('data-tip');
+    if(!txt) return;
+    hmTip.textContent = txt.replace(/&#10;/g,'\n');
+    hmTip.style.display = 'block';
+  });
+  document.addEventListener('mousemove', function(e){
+    if(hmTip.style.display==='block'){
+      const x = e.clientX + 14;
+      const y = e.clientY + 14;
+      const w = hmTip.offsetWidth;
+      const h = hmTip.offsetHeight;
+      hmTip.style.left = (x + w > window.innerWidth ? x - w - 28 : x) + 'px';
+      hmTip.style.top  = (y + h > window.innerHeight ? y - h - 28 : y) + 'px';
+    }
+  });
+  document.addEventListener('mouseout', function(e){
+    const td = e.target.closest('td.hm-tip');
+    if(td && hmTip) hmTip.style.display = 'none';
+  });
 }
 
 async function syncPhotosAndSettings(){
@@ -2749,21 +2820,22 @@ function renderHeatmap(){
   // คำนวณยอดแต่ละช่อง แต่ละชั่วโมง
   const hours = Array.from({length:24},(_,i)=>i);
   const data = shopNames.map((name,si)=>{
+    // เก็บทั้ง val และ records เพื่อ tooltip
     const row = hours.map(h=>{
       const recs = records.filter(r=>
         r.shop===si &&
         String(r.date).slice(0,10)===dateVal &&
         parseInt(r.hourStart)===h
       );
-      // -1 = ยังไม่มี record, 0+ = มี record (อาจยอด 0)
-      return recs.length === 0 ? -1 : recs.reduce((a,b)=>a+b.amount, 0);
+      if(recs.length === 0) return {val:-1, recs:[]};
+      return {val: recs.reduce((a,b)=>a+b.amount, 0), recs};
     });
-    const total = row.reduce((a,b)=>a+(b>0?b:0),0);
+    const total = row.reduce((a,b)=>a+(b.val>0?b.val:0),0);
     return {name, row, total};
   });
 
   // คำนวณค่าเฉลี่ยต่อ cell (เพื่อทำ heatmap สี)
-  const allVals = data.flatMap(d=>d.row).filter(v=>v>0);
+  const allVals = data.flatMap(d=>d.row.map(r=>r.val)).filter(v=>v>0)
   const avg = allVals.length ? allVals.reduce((a,b)=>a+b,0)/allVals.length : 0;
   const maxVal = Math.max(...allVals, 1);
 
@@ -2790,28 +2862,53 @@ function renderHeatmap(){
         <div style="font-weight:600;font-size:12px;color:var(--text)">${name}</div>
       </div>
     </div></td>`;
-    row.forEach(val=>{
+    row.forEach(cell=>{
+      const val = cell.val;
+      const recs = cell.recs || [];
       let cls, display, titleTxt;
+
       if(val === -1){
-        // ยังไม่มี record เลย → น้ำเงิน
         display = '<span style="font-size:9px;white-space:nowrap">ยังไม่ได้<br>บันทึก</span>';
         titleTxt = 'ยังไม่ได้บันทึกยอด';
         cls = 'hm-none';
       } else if(val === 0){
-        // มี record แต่ยอด 0 → แดง
         display = '฿0';
         titleTxt = 'บันทึกยอด 0 บาท';
         cls = 'hm-zero';
       } else {
-        // มียอด → สีตามสัดส่วน
         display = fmt(val);
-        titleTxt = fmtFull(val) + ' ฿';
+        // สร้าง tooltip จาก records ทั้งหมด
+        const recLines = recs.map(r=>[
+          '📺 ช่อง : ' + (shopNames[r.shop] || '-'),
+          '🕐 เวลา : ' + (r.timeRange || '-'),
+          '💰 ยอด : ฿' + fmtFull(r.amount),
+          r.liveTime ? '⏱ ไลฟ์ : ' + r.liveTime : '',
+          '📅 วันที่ : ' + String(r.date).slice(0,10).split('-').reverse().join('/'),
+          r.staff ? '👤 พนักงาน : ' + r.staff : '',
+        ].filter(Boolean).join('\n')).join('\n─────\n');
+        titleTxt = recLines || (fmtFull(val) + ' ฿');
         const ratio = val / avg;
         if(ratio >= 1.5)      cls = 'hm-high';
         else if(ratio >= 0.7) cls = 'hm-mid';
         else                   cls = 'hm-low';
       }
-      html += `<td class="${cls}" title="${titleTxt}">${display}</td>`;
+      // สร้าง tooltip detail
+      let tipContent = titleTxt;
+      if(recs.length > 0){
+        const r = recs[0];
+        const dateStr = String(r.date).slice(0,10);
+        const parts = dateStr.split('-');
+        const dateTH = parts.length===3 ? parts[2]+'/'+parts[1]+'/'+parts[0] : dateStr;
+        tipContent = [
+          '📺 ช่อง : ' + (shopNames[r.shop]||'-'),
+          '🕐 เวลา : ' + (r.timeRange||'-'),
+          '💰 ยอด : ' + fmtFull(r.amount) + ' ฿',
+          r.liveTime ? '⏱ ไลฟ์ : ' + r.liveTime : '',
+          '📅 วันที่ : ' + dateTH,
+          r.staff ? '👤 พนักงาน : ' + r.staff : '',
+        ].filter(Boolean).join('\n');
+      }
+      html += `<td class="${cls} hm-tip" data-tip="${tipContent.replace(/"/g,"'")}">${display}</td>`;
     });
     html += `<td class="hm-total-col">${total>0?fmt(total):'-'}</td>`;
     html += '</tr>';
@@ -2821,7 +2918,7 @@ function renderHeatmap(){
   html += '<tr class="hm-footer">';
   html += '<td><div style="display:flex;align-items:center;gap:8px"><span style="font-size:18px">📊</span><span style="font-weight:700;color:var(--golddark);font-size:12px">รวมทุกช่อง</span></div></td>';
   hours.forEach(h=>{
-    const sum = data.reduce((a,d)=>{ const v=d.row[h]; return a+(v>0?v:0); },0);
+    const sum = data.reduce((a,d)=>{ const v=d.row[h].val; return a+(v>0?v:0); },0);
     html += `<td class="${sum>0?'hm-total-col':''}" style="font-weight:${sum>0?'600':'400'}">${sum>0?fmt(sum):'-'}</td>`;
   });
   const grandTotal = data.reduce((a,d)=>a+d.total,0);
