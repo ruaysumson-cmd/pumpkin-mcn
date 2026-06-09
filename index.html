@@ -752,7 +752,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbwb6Z9CKAhq7AKOTmVgTwrTcZTAF1xWhVWZ3Lsq-WcUquMHhfxM-TYRscGT7tLVSvfe/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxnW23GALlg-llXrZrj2ZVnyoO5awQtloRwjD9iXLsT3yoVDeexj4jJhjzTjE2lTlVg/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -902,10 +902,18 @@ async function loadAll(silent=false){
   document.getElementById('syncBanner').classList.add('show');
   try {
     // ─── โหลดข้อมูลหลัก (critical) ───
-    // รวม 1 API call แทน 4 calls ← ลดเวลาโหลดมาก
-    const initRes = await apiCall('getInit');
-    const recRes  = { records: initRes.records, cutoff: initRes.cutoff };
-    const nameRes = { names: initRes.names };
+    // ลอง getInit ก่อน (เร็ว) ถ้าไม่ได้ fallback เป็น getAll
+    let recRes, nameRes, initRes = null;
+    try {
+      initRes = await apiCall('getInit');
+      if(initRes && initRes.records){
+        recRes  = { records: initRes.records, cutoff: initRes.cutoff };
+        nameRes = { names: initRes.names };
+      } else { throw new Error('no records'); }
+    } catch(_) {
+      const [r, n] = await Promise.all([apiCall('getAll'), apiCall('getShopNames')]);
+      recRes = r; nameRes = n;
+    }
     if(recRes.records) records = recRes.records.map(r=>({
       shop: parseInt(r.shop),
       date: (()=>{
