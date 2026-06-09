@@ -802,7 +802,7 @@ let records = [];
     if(cached){
       const obj = JSON.parse(cached);
       // ใช้ cache ถ้าไม่เกิน 30 นาที
-      if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 30*60*1000){
+      if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 60*60*1000){
         records = obj.records;
         window._lastLoadTime = obj.ts; // ป้องกัน fetch ซ้ำทันที
       }
@@ -892,201 +892,93 @@ async function apiCall(action, body={}){
 }
 
 async function loadAll(silent=false){
-  // cache 30s: ไม่ fetch ซ้ำถ้าเพิ่ง load ไปไม่นาน
-  const _nowTs = Date.now();
-  if(!silent && window._lastLoadTime && (_nowTs-window._lastLoadTime)<30000 && records.length>0){
-    renderCurrentPage(); return;
+  // ─── Stale-While-Revalidate ───
+  // มี cache → แสดงทันที แล้ว fetch ใหม่ใน background
+  const hasCacheData = records.length > 0;
+
+  if(hasCacheData){
+    // แสดงข้อมูลเก่าทันที ไม่ต้องรอ
+    renderCurrentPage();
+    setSyncStatus('syncing');
+    // fetch ใน background เงียบๆ
+    _fetchAndUpdate();
+    return;
   }
+
+  // ไม่มี cache → แสดง loading แล้ว fetch
   setSyncStatus('syncing');
   if(!silent) document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('syncBanner').classList.add('show');
+  await _fetchAndUpdate();
+  if(!silent) document.getElementById('loadingOverlay').classList.add('hidden');
+}
+
+async function _fetchAndUpdate(){
   try {
-    // ─── โหลดข้อมูลหลัก (critical) ───
-    // ลอง getInit ก่อน (เร็ว) ถ้าไม่ได้ fallback เป็น getAll
     let recRes, nameRes, initRes = null;
     try {
       initRes = await apiCall('getInit');
       if(initRes && initRes.records){
-        recRes  = { records: initRes.records, cutoff: initRes.cutoff };
+        recRes  = { records: initRes.records };
         nameRes = { names: initRes.names };
-      } else { throw new Error('no records'); }
+      } else throw new Error('no data');
     } catch(_) {
-      const [r, n] = await Promise.all([apiCall('getAll'), apiCall('getShopNames')]);
+      const [r,n] = await Promise.all([apiCall('getAll'), apiCall('getShopNames')]);
       recRes = r; nameRes = n;
     }
-    if(recRes.records) records = recRes.records.map(r=>({
-      shop: parseInt(r.shop),
-      date: (()=>{
-        const d = String(r.date);
-        if(d.includes('T')){
-          const dt = new Date(d);
-          dt.setTime(dt.getTime() + 7*60*60*1000);
-          return dt.toISOString().slice(0,10);
-        }
-        return d.slice(0,10);
-      })(),
-      hourStart: r.hourStart!==undefined ? parseInt(r.hourStart) : parseInt(r.hour)||0,
-      hourEnd: r.hourEnd!==undefined ? parseInt(r.hourEnd) : (parseInt(r.hour)||0)+1,
-      timeRange: r.timeRange || fmtTimeRange(parseInt(r.hourStart||r.hour)||0,(parseInt(r.hourEnd||r.hour)||0)+1),
-      amount: parseFloat(r.amount)||0,
-      liveTime: r.liveTime||'',
-      staff: r.staff||''
-    }));
+
+    if(recRes.records){
+      records = recRes.records.map(r=>({
+        shop: parseInt(r.shop),
+        date: (()=>{
+          const d = String(r.date);
+          if(d.length > 10 && d.includes('T')){
+            const dt = new Date(d);
+            dt.setTime(dt.getTime() + 7*60*60*1000);
+            return dt.toISOString().slice(0,10);
+          }
+          return d.slice(0,10);
+        })(),
+        hourStart: r.hourStart!==undefined ? parseInt(r.hourStart) : parseInt(r.hour)||0,
+        hourEnd: r.hourEnd!==undefined ? parseInt(r.hourEnd) : (parseInt(r.hour)||0)+1,
+        timeRange: r.timeRange || fmtTimeRange(parseInt(r.hourStart||r.hour)||0,(parseInt(r.hourEnd||r.hour)||0)+1),
+        amount: parseFloat(r.amount)||0,
+        liveTime: r.liveTime||'',
+        staff: r.staff||''
+      }));
+    }
+
     if(nameRes.names && nameRes.names.length===SHOP_COUNT){
       shopNames = nameRes.names;
       localStorage.setItem('pg_shopnames', JSON.stringify(shopNames));
-      rebuildSelects();
-      buildBatchInputs();
     }
-    setSyncStatus('online');
-    setLastSync();
-    renderCurrentPage();
-    toast('✓ โหลดข้อมูลสำเร็จ','success');
-  } catch(e) {
-    setSyncStatus('offline');
-    toast('❌ เชื่อมต่อ Google Sheets ไม่ได้','error');
-  } finally {
+
+    // photos + settings จาก initRes
+    if(initRes && initRes.photos){
+      window._photos = initRes.photos;
+      const lp = JSON.parse(localStorage.getItem('pg_photos')||'{}');
+      localStorage.setItem('pg_photos', JSON.stringify({...lp,...initRes.photos}));
+      window._photosCache = null;
+    }
+    if(initRes && initRes.settings){
+      if(initRes.settings.sheetsUrl) window._sheetsUrl = initRes.settings.sheetsUrl;
+    }
+
+    // save cache
+    window._lastLoadTime = Date.now();
+    try{ localStorage.setItem('pg_records_cache', JSON.stringify({records, ts:Date.now()})); }catch(e){}
+    setSyncStatus('online'); setLastSync();
     document.getElementById('syncBanner').classList.remove('show');
-    if(!silent) document.getElementById('loadingOverlay').classList.add('hidden');
-    isSyncing=false;
-  }
-
-  // ─── โหลด photos + settings (non-critical, แยกออกมาเพื่อไม่กระทบหลัก) ───
-  syncPhotosAndSettings();
-  // ─── Heatmap tooltip ───
-  const _hmTip = document.getElementById('hmTooltip');
-  if(_hmTip){
-    document.addEventListener('mouseover', function(e){
-      const td = e.target.closest('td.hm-tip');
-      if(!td) return;
-      const txt = td.getAttribute('data-tip');
-      if(!txt || txt==='ยังไม่ได้บันทึกยอด') return;
-      _hmTip.textContent = txt;
-      _hmTip.style.display = 'block';
-    });
-    document.addEventListener('mousemove', function(e){
-      if(_hmTip.style.display==='block'){
-        const x=e.clientX+16, y=e.clientY+16;
-        const bw=_hmTip.offsetWidth, bh=_hmTip.offsetHeight;
-        _hmTip.style.left=(x+bw>window.innerWidth?x-bw-32:x)+'px';
-        _hmTip.style.top=(y+bh>window.innerHeight?y-bh-32:y)+'px';
-      }
-    });
-    document.addEventListener('mouseout', function(e){
-      if(e.target.closest('td.hm-tip')) _hmTip.style.display='none';
-    });
-  }
-  // ─── heatmap tooltip ───
-  const hmTip = document.getElementById('hmTooltip');
-  document.addEventListener('mouseover', function(e){
-    const td = e.target.closest('td.hm-tip');
-    if(!td || !hmTip) return;
-    const txt = td.getAttribute('data-tip');
-    if(!txt) return;
-    hmTip.textContent = txt.replace(/&#10;/g,'\n');
-    hmTip.style.display = 'block';
-  });
-  document.addEventListener('mousemove', function(e){
-    if(hmTip.style.display==='block'){
-      const x = e.clientX + 14;
-      const y = e.clientY + 14;
-      const w = hmTip.offsetWidth;
-      const h = hmTip.offsetHeight;
-      hmTip.style.left = (x + w > window.innerWidth ? x - w - 28 : x) + 'px';
-      hmTip.style.top  = (y + h > window.innerHeight ? y - h - 28 : y) + 'px';
-    }
-  });
-  document.addEventListener('mouseout', function(e){
-    const td = e.target.closest('td.hm-tip');
-    if(td && hmTip) hmTip.style.display = 'none';
-  });
-}
-
-async function syncPhotosAndSettings(){
-  try {
-    const [photoRes, settingsRes] = await Promise.all([
-      apiCall('getPhotos').catch(()=>({photos:{}})),
-      apiCall('getSettings').catch(()=>({settings:{}}))
-    ]);
-
-    // ─── Photos: cloud เสมอ ───
-    const cloudPhotos = (photoRes && photoRes.photos) ? photoRes.photos : {};
-    const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
-
-    if(Object.keys(cloudPhotos).length > 0){
-      // ใช้ cloud เป็นหลัก
-      window._photos = cloudPhotos;
-      localStorage.setItem('pg_photos', JSON.stringify(cloudPhotos));
-    } else if(Object.keys(localPhotos).length > 0){
-      // cloud ว่าง แต่ local มี → upload ขึ้น cloud
-      try{ await apiCall('savePhotos', {photos: localPhotos}); }catch(e){}
-      window._photos = localPhotos;
-    } else {
-      window._photos = {};
-    }
-
-    // ─── Sheets URL: cloud เสมอ ───
-    const cloudUrl = settingsRes?.settings?.sheetsUrl || '';
-    const localUrl = localStorage.getItem('pg_sheets_url') || '';
-
-    if(cloudUrl){
-      window._sheetsUrl = cloudUrl;
-      localStorage.setItem('pg_sheets_url', cloudUrl);
-    } else if(localUrl){
-      // cloud ว่าง แต่ local มี → upload ขึ้น cloud
-      try{ await apiCall('saveSettings', {key: 'sheetsUrl', value: localUrl}); }catch(e){}
-      window._sheetsUrl = localUrl;
-    }
-
-    // re-render หน้าปัจจุบัน
     renderCurrentPage();
-
-  } catch(e) {
-    console.log('syncPhotosAndSettings error:', e);
+  } catch(e){
+    setSyncStatus('offline');
+    document.getElementById('syncBanner').classList.remove('show');
+    if(records.length > 0) renderCurrentPage(); // ใช้ cache ถ้ามี
   }
 }
-
-
-async function manualSyncToCloud(){
-  const btn = document.getElementById('manualSyncBtn');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Sync...'; }
-  
-  const localPhotos = (() => { try{ return JSON.parse(localStorage.getItem('pg_photos')||'{}'); }catch(e){return {};} })();
-  const localUrl = localStorage.getItem('pg_sheets_url') || window._sheetsUrl || '';
-  let photoCount = 0, urlOk = false, errors = [];
-
-  // 1. Sync URL ก่อน (เบาที่สุด)
-  if(localUrl){
-    try{
-      await apiCall('saveSettings', {key:'sheetsUrl', value:localUrl});
-      window._sheetsUrl = localUrl;
-      urlOk = true;
-    } catch(e){ errors.push('URL: '+e.message); }
-  }
-
-  // 2. Sync รูปทีละช่อง (ไม่ส่งพร้อมกันเพราะอาจใหญ่เกิน)
-  const photoEntries = Object.entries(localPhotos);
-  for(const [idx, photo] of photoEntries){
-    try{
-      await apiCall('savePhotos', {photos: {[idx]: photo}});
-      photoCount++;
-      if(btn) btn.textContent = `⏳ Sync รูป ${photoCount}/${photoEntries.length}...`;
-    } catch(e){ errors.push(`รูปช่อง ${idx}: ${e.message}`); }
-  }
-
-  window._photos = localPhotos;
-
-  if(btn){ btn.disabled=false; btn.textContent='☁️ Sync ขึ้น Cloud'; }
-
-  if(errors.length === 0){
-    toast(`✅ Sync สำเร็จ! รูป ${photoCount} ช่อง${urlOk?' | URL ✅':''}`, 'success');
-  } else {
-    toast(`⚠️ Sync บางส่วน: รูป ${photoCount}/${photoEntries.length}${urlOk?' URL ✅':' URL ❌'}
-Error: ${errors[0]}`, 'error');
-  }
-}
-
 async function syncNow(){
+  window._lastLoadTime = 0;
+  localStorage.removeItem('pg_records_cache');
   if(isSyncing)return;
   isSyncing=true;
   document.getElementById('syncBtn').disabled=true;
