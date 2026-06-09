@@ -752,7 +752,7 @@ tr:hover td{background:#f8f9fe}
 
 <script>
 // ==================== CONFIG ====================
-const API_URL = "https://script.google.com/macros/s/AKfycbx1NAuSlbXljPhHsZROX_3nf6pymUvZ8X56A2Qe2zJ033Poh4jZk789SydI4xJQzvq3/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwb6Z9CKAhq7AKOTmVgTwrTcZTAF1xWhVWZ3Lsq-WcUquMHhfxM-TYRscGT7tLVSvfe/exec";
 // ใส่ลิงก์ Google Sheets ของป๊อปปี้ตรงนี้
 const SHEETS_URL = "https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit";
 // ถ้ามี URL จาก localStorage ให้ใช้อันนั้น (บันทึกถาวรไม่หาย)
@@ -795,16 +795,21 @@ let shopNames = [
   "หน่อง ธนา"
 ];
 let records = [];
-// โหลด cache จาก localStorage ทันที (ก่อน fetch API)
+// ─── โหลด cache ทันทีก่อน fetch (เว็บจะแสดงข้อมูลเก่าก่อน แล้ว refresh ใน background) ───
 (function initCache(){
   try {
     const cached = localStorage.getItem('pg_records_cache');
     if(cached){
       const obj = JSON.parse(cached);
-      if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 10*60*1000){
-        records = obj.records; // ใช้ cache ถ้าไม่เกิน 10 นาที
+      // ใช้ cache ถ้าไม่เกิน 30 นาที
+      if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 30*60*1000){
+        records = obj.records;
+        window._lastLoadTime = obj.ts; // ป้องกัน fetch ซ้ำทันที
       }
     }
+    // โหลด photos cache
+    const pc = localStorage.getItem('pg_photos');
+    if(pc) window._photosCache = JSON.parse(pc||'{}');
   } catch(e){}
 })();
 let periodTab = 'today', cmpTab = 'today';
@@ -897,10 +902,10 @@ async function loadAll(silent=false){
   document.getElementById('syncBanner').classList.add('show');
   try {
     // ─── โหลดข้อมูลหลัก (critical) ───
-    const [recRes, nameRes] = await Promise.all([
-      apiCall('getAll'),
-      apiCall('getShopNames')
-    ]);
+    // รวม 1 API call แทน 4 calls ← ลดเวลาโหลดมาก
+    const initRes = await apiCall('getInit');
+    const recRes  = { records: initRes.records, cutoff: initRes.cutoff };
+    const nameRes = { names: initRes.names };
     if(recRes.records) records = recRes.records.map(r=>({
       shop: parseInt(r.shop),
       date: (()=>{
