@@ -795,6 +795,18 @@ let shopNames = [
   "หน่อง ธนา"
 ];
 let records = [];
+// โหลด cache จาก localStorage ทันที (ก่อน fetch API)
+(function initCache(){
+  try {
+    const cached = localStorage.getItem('pg_records_cache');
+    if(cached){
+      const obj = JSON.parse(cached);
+      if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 10*60*1000){
+        records = obj.records; // ใช้ cache ถ้าไม่เกิน 10 นาที
+      }
+    }
+  } catch(e){}
+})();
 let periodTab = 'today', cmpTab = 'today';
 let summaryChart = null, compareChart = null;
 let isSyncing = false;
@@ -875,6 +887,11 @@ async function apiCall(action, body={}){
 }
 
 async function loadAll(silent=false){
+  // cache 30s: ไม่ fetch ซ้ำถ้าเพิ่ง load ไปไม่นาน
+  const _nowTs = Date.now();
+  if(!silent && window._lastLoadTime && (_nowTs-window._lastLoadTime)<30000 && records.length>0){
+    renderCurrentPage(); return;
+  }
   setSyncStatus('syncing');
   if(!silent) document.getElementById('loadingOverlay').classList.remove('hidden');
   document.getElementById('syncBanner').classList.add('show');
@@ -1060,8 +1077,9 @@ async function syncNow(){
   if(isSyncing)return;
   isSyncing=true;
   document.getElementById('syncBtn').disabled=true;
-  await loadAll();
+  await loadAll(true); // force reload
   document.getElementById('syncBtn').disabled=false;
+  isSyncing=false;
 }
 
 // ==================== NAV ====================
@@ -1386,6 +1404,8 @@ function setPeriod(btn,p){
 
 
 function renderSummary(){
+  // cache sumFor results สำหรับ period นี้
+  window._sumCache = {};
   const labels=getLabels(periodTab);
   const selHourForChart = periodTab==='hour' ? getSelectedHour() : null;
   const totals=labels.map(l=>shopNames.reduce((_,__,i)=>_+sumFor(i,periodTab,periodTab==='hour'?parseInt(l):l),0));
@@ -1615,7 +1635,7 @@ async function saveEntry(){
     }
     const idx=records.findIndex(r=>r.shop===shop&&r.date===date&&r.hourStart===hourStart&&r.hourEnd===hourEnd);
     if(idx>=0)records[idx].amount=amount; else records.push({shop,date,hourStart,hourEnd,timeRange,amount});
-    setSyncStatus('online'); setLastSync();
+    setSyncStatus('online'); setLastSync(); window._lastLoadedAt = Date.now();
     toast(`✓ บันทึก ${shopNames[shop]} ${timeRange} — ฿${fmt(amount)}`);
     document.getElementById('inAmount').value='';
     renderSummary();
@@ -1853,8 +1873,10 @@ function clearFilter(){document.getElementById('histShop').value='all';document.
 // ==================== SETTINGS ====================
 // ==================== SHOP PHOTOS ====================
 function getShopPhotos(){
+  if(window._photosCache) return window._photosCache;
   // cloud-first: ใช้ window._photos ที่โหลดจาก Google Sheets เสมอ
-  return window._photos || {};
+  window._photosCache = window._photos || {};
+  return window._photosCache;
 }
 function saveShopPhotos(photos){
   localStorage.setItem('pg_photos', JSON.stringify(photos));
