@@ -798,18 +798,21 @@ let records = [];
 // ─── โหลด cache ทันทีก่อน fetch (เว็บจะแสดงข้อมูลเก่าก่อน แล้ว refresh ใน background) ───
 (function initCache(){
   try {
+    // โหลด shopNames จาก localStorage ก่อน (ทำให้ select options พร้อมทันที)
+    const sn = localStorage.getItem('pg_shopnames');
+    if(sn) shopNames = JSON.parse(sn);
+    // โหลด records cache
     const cached = localStorage.getItem('pg_records_cache');
     if(cached){
       const obj = JSON.parse(cached);
-      // ใช้ cache ถ้าไม่เกิน 30 นาที
       if(obj && obj.records && obj.ts && (Date.now()-obj.ts) < 60*60*1000){
         records = obj.records;
-        window._lastLoadTime = obj.ts; // ป้องกัน fetch ซ้ำทันที
+        window._lastLoadTime = obj.ts;
       }
     }
-    // โหลด photos cache
+    // โหลด photos
     const pc = localStorage.getItem('pg_photos');
-    if(pc) window._photosCache = JSON.parse(pc||'{}');
+    if(pc) window._photos = JSON.parse(pc||'{}');
   } catch(e){}
 })();
 let periodTab = 'today', cmpTab = 'today';
