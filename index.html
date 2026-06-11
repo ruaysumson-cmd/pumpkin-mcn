@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+<script>document.addEventListener("DOMContentLoaded",function(){var m=document.getElementById("logoMain");var l=document.getElementById("logoLogin");if(m&&l)l.src=m.src;});</script><!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
@@ -291,7 +292,7 @@ tr:hover td{background:#f8f9fe}
   <div class="logo">
     <div style="text-align:center;margin-bottom:12px;position:relative">
       <div style="position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:116px;height:116px;border-radius:50%;background:radial-gradient(circle,rgba(255,180,80,0.2),transparent 70%);pointer-events:none"></div>
-      <img id="logoLogin" onload="this.onerror=null" src="#" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,180,80,0.6);box-shadow:0 4px 20px rgba(224,123,42,0.4),0 0 0 6px rgba(255,180,80,0.15);display:block;margin:0 auto">
+      <img id="logoLogin" src="#" onload="this.onerror=null" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,180,80,0.6);box-shadow:0 4px 20px rgba(224,123,42,0.4),0 0 0 6px rgba(255,180,80,0.15);display:block;margin:0 auto">
     </div>
     <div style="text-align:center;margin-top:10px">
       <div style="font-size:14px;font-weight:700;color:#f5ede0;letter-spacing:0.5px">Pumpkin MCN</div>
@@ -545,11 +546,12 @@ tr:hover td{background:#f8f9fe}
         </div>
         <div class="form-group" style="max-width:165px"><span class="form-label">วันที่</span><input type="date" class="form-control" id="histDate" onchange="renderHistory()"></div>
         <button class="btn btn-ghost" onclick="clearFilter()">ล้างตัวกรอง</button>
+      <button id="bulkDelBtn" class="btn btn-danger" style="display:none;padding:6px 14px;font-size:12px" onclick="bulkDelete()">🗑 ลบที่เลือก (<span id="selCount">0</span>)</button>
       </div>
       <div class="chart-card" style="padding:0;overflow:hidden">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>ช่อง</th><th>วันที่</th><th>ช่วงเวลา</th><th class="num">ยอดขาย (฿)</th><th>บันทึกโดย</th><th></th></tr></thead>
+            <thead><tr><th style="width:32px"><input type="checkbox" id="selAll" onchange="toggleSelAll(this)" title="เลือกทั้งหมด"></th><th>ช่อง</th><th>วันที่</th><th>ช่วงเวลา</th><th class="num">ยอดขาย (฿)</th><th>บันทึกโดย</th><th></th></tr></thead>
             <tbody id="histBody"></tbody>
           </table>
         </div>
@@ -1748,16 +1750,76 @@ function renderHistory(){
   let filtered=records.filter(r=>{if(sf!=='all'&&r.shop!==parseInt(sf))return false;if(df&&r.date!==df)return false;return true;}).sort((a,b)=>b.date.localeCompare(a.date)||b.hour-a.hour);
   const body=document.getElementById('histBody');
   if(!filtered.length){body.innerHTML=`<tr><td colspan="5"><div class="empty">ไม่มีข้อมูลในช่วงที่เลือก</div></td></tr>`;return;}
-  body.innerHTML=filtered.map(r=>`<tr>
+  body.innerHTML=filtered.map((r,ri)=>{
+    // ─── ตรวจวันที่ผิดปกติ ───
+    const yr = parseInt((r.date||'').slice(0,4));
+    let dateWarn = '';
+    let dateTip = '';
+    if(yr >= 2500 && yr <= 2599){
+      // น่าจะเป็น พ.ศ. ที่ยังไม่ได้แปลง
+      const fixYr = yr - 543;
+      dateWarn = `<span title="⚠️ วันที่อาจผิด: ปี ${yr} เป็น พ.ศ. หรือเปล่า? ควรเป็น ${fixYr}?" style="cursor:help;color:#EF4444;margin-left:4px;font-size:13px">⚠️</span>`;
+    } else if(yr >= 2060 && yr <= 2099){
+      // น่าจะเป็น ค.ศ. 2 หลัก ที่แปลงผิด เช่น 26 → 2026 แต่ได้ 2069
+      dateWarn = `<span title="⚠️ วันที่อาจผิด: ปี ${yr} — ถ้าตั้งใจใส่ปี ค.ศ. 2 หลัก เช่น '26' ควรเป็น 2026?" style="cursor:help;color:#EF4444;margin-left:4px;font-size:13px">⚠️</span>`;
+    } else if(yr > 2030 && yr < 2060){
+      dateWarn = `<span title="⚠️ วันที่อาจผิด: ปี ${yr}" style="cursor:help;color:#F59E0B;margin-left:4px;font-size:13px">⚠️</span>`;
+    }
+    const key = r.shop+'|'+r.date+'|'+r.hourStart+'|'+r.hourEnd;
+    return `<tr>
+    <td style="width:32px"><input type="checkbox" class="histChk" value="${key}" data-shop="${r.shop}" data-date="${r.date}" data-hs="${r.hourStart}" data-he="${r.hourEnd}" onchange="updateBulkBtn()"></td>
     <td><span style="font-weight:500">${shopNames[r.shop]}</span></td>
-    <td style="font-family:var(--mono);color:var(--text2)">${r.date}</td>
+    <td style="font-family:var(--mono);color:var(--text2)">${r.date}${dateWarn}</td>
     <td style="font-family:var(--mono);color:var(--text2)">${r.timeRange||'-'}</td>
     <td class="num" style="font-weight:500">${fmt(r.amount)}</td>
     <td style="color:var(--text3);font-size:12px">${r.staff||'-'}</td>
     <td><button class="btn btn-danger" style="padding:4px 10px;font-size:11px" onclick="delRecord(${r.shop},'${r.date}',${r.hourStart},${r.hourEnd})">ลบ</button></td>
-  </tr>`).join('');
+  </tr>`;
+  }).join('');
 }
 
+function toggleSelAll(cb){
+  document.querySelectorAll('.histChk').forEach(c=>c.checked=cb.checked);
+  updateBulkBtn();
+}
+function updateBulkBtn(){
+  const chks = document.querySelectorAll('.histChk:checked');
+  const btn = document.getElementById('bulkDelBtn');
+  const cnt = document.getElementById('selCount');
+  if(btn){ btn.style.display = chks.length>0?'inline-flex':'none'; }
+  if(cnt){ cnt.textContent = chks.length; }
+  // uncheck selAll ถ้าไม่ได้เลือกทั้งหมด
+  const all = document.querySelectorAll('.histChk');
+  const selAllCb = document.getElementById('selAll');
+  if(selAllCb) selAllCb.checked = all.length>0 && chks.length===all.length;
+}
+async function bulkDelete(){
+  const chks = [...document.querySelectorAll('.histChk:checked')];
+  if(!chks.length) return;
+  if(!confirm(`ยืนยันลบ ${chks.length} รายการ?`)) return;
+  setSyncStatus('syncing');
+  const btn = document.getElementById('bulkDelBtn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังลบ...'; }
+  let ok=0, fail=0;
+  for(const chk of chks){
+    const shop=parseInt(chk.dataset.shop);
+    const date=chk.dataset.date;
+    const hs=parseInt(chk.dataset.hs);
+    const he=parseInt(chk.dataset.he);
+    try{
+      const res=await apiCall('deleteRecord',{shop,date,hourStart:hs,hourEnd:he});
+      if(res&&res.success===true){
+        records=records.filter(r=>!(r.shop===shop&&r.date===date&&r.hourStart===hs&&r.hourEnd===he));
+        ok++;
+      } else { fail++; }
+    } catch(e){ fail++; }
+  }
+  try{ localStorage.removeItem('pg_records_cache'); }catch(e){}
+  setSyncStatus('online'); setLastSync();
+  if(btn){ btn.disabled=false; btn.style.display='none'; btn.innerHTML='🗑 ลบที่เลือก (<span id="selCount">0</span>)'; }
+  renderHistory();
+  toast(ok>0 ? `✅ ลบสำเร็จ ${ok} รายการ${fail>0?' (ล้มเหลว '+fail+')':''}` : '❌ ลบไม่สำเร็จ', ok>0?'':'error');
+}
 async function delRecord(shop,date,hourStart,hourEnd){
   if(!confirm('ยืนยันลบข้อมูลนี้?')) return;
   setSyncStatus('syncing');
@@ -2877,5 +2939,96 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 });
 </script>
+
+<!-- ═══════════════════════════════ -->
+<!-- PUMPKIN MASCOTS DECORATION      -->
+<!-- ═══════════════════════════════ -->
+<style>
+.pk-mascot{position:fixed;z-index:10;pointer-events:none;opacity:0.85;animation:pkFloat 4s ease-in-out infinite;}
+.pk-mascot.pk2{animation-delay:-1.5s;animation-duration:5s;}
+.pk-mascot.pk3{animation-delay:-3s;animation-duration:3.8s;}
+@keyframes pkFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@media(max-width:600px){.pk-mascot{display:none}}
+</style>
+
+<!-- แจ็ค: มุมขวาล่าง -->
+<div class="pk-mascot" style="bottom:20px;right:20px;width:80px">
+<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="82" rx="38" ry="34" fill="#F97316"/>
+  <ellipse cx="28" cy="80" rx="14" ry="26" fill="#EA580C"/>
+  <ellipse cx="72" cy="80" rx="14" ry="26" fill="#EA580C"/>
+  <ellipse cx="50" cy="80" rx="18" ry="28" fill="#F97316"/>
+  <rect x="46" y="46" width="8" height="14" rx="3" fill="#65A30D"/>
+  <ellipse cx="60" cy="51" rx="10" ry="5" fill="#84CC16" transform="rotate(-30,60,51)"/>
+  <ellipse cx="38" cy="77" rx="7" ry="8" fill="#1C1917"/>
+  <ellipse cx="62" cy="77" rx="7" ry="8" fill="#1C1917"/>
+  <ellipse cx="40" cy="75" rx="3" ry="3" fill="white"/>
+  <ellipse cx="64" cy="75" rx="3" ry="3" fill="white"/>
+  <path d="M36 90 Q50 102 64 90" stroke="#1C1917" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <ellipse cx="30" cy="88" rx="7" ry="5" fill="#FB923C" opacity="0.6"/>
+  <ellipse cx="70" cy="88" rx="7" ry="5" fill="#FB923C" opacity="0.6"/>
+  <path d="M14 72 Q-5 62 0 47" stroke="#F97316" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="0" cy="45" rx="7" ry="6" fill="#F97316"/>
+  <path d="M86 72 Q105 62 102 50" stroke="#F97316" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="102" cy="48" rx="7" ry="6" fill="#F97316"/>
+  <ellipse cx="38" cy="118" rx="10" ry="8" fill="#F97316"/>
+  <ellipse cx="62" cy="118" rx="10" ry="8" fill="#F97316"/>
+  <ellipse cx="36" cy="127" rx="13" ry="7" fill="#EA580C"/>
+  <ellipse cx="64" cy="127" rx="13" ry="7" fill="#EA580C"/>
+  <ellipse cx="50" cy="47" rx="30" ry="6" fill="#1C1917"/>
+  <rect x="35" y="17" width="30" height="32" rx="4" fill="#1C1917"/>
+  <rect x="35" y="42" width="30" height="6" rx="1" fill="#F97316"/>
+</svg></div>
+
+<!-- พัมกี้: มุมซ้ายล่าง -->
+<div class="pk-mascot pk2" style="bottom:20px;left:20px;width:80px">
+<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="78" rx="34" ry="30" fill="#FB923C"/>
+  <ellipse cx="30" cy="77" rx="12" ry="22" fill="#F97316"/>
+  <ellipse cx="70" cy="77" rx="12" ry="22" fill="#F97316"/>
+  <ellipse cx="50" cy="77" rx="16" ry="24" fill="#FB923C"/>
+  <rect x="47" y="46" width="7" height="12" rx="3" fill="#65A30D"/>
+  <ellipse cx="59" cy="49" rx="9" ry="4" fill="#84CC16" transform="rotate(-40,59,49)"/>
+  <path d="M32 73 Q38 68 44 73" stroke="#1C1917" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M56 73 Q62 68 68 73" stroke="#1C1917" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <path d="M42 87 Q50 95 58 87" stroke="#1C1917" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <ellipse cx="31" cy="85" rx="7" ry="5" fill="#FED7AA" opacity="0.8"/>
+  <ellipse cx="69" cy="85" rx="7" ry="5" fill="#FED7AA" opacity="0.8"/>
+  <rect x="22" y="100" width="56" height="30" rx="4" fill="#FBBF24"/>
+  <rect x="22" y="100" width="28" height="30" rx="4" fill="#F59E0B"/>
+  <line x1="50" y1="100" x2="50" y2="130" stroke="#92400E" stroke-width="2"/>
+  <path d="M18 83 Q15 98 22 104" stroke="#FB923C" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M82 83 Q85 98 78 104" stroke="#FB923C" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <path d="M38 41 Q42 29 50 35 Q58 29 62 41" fill="#FDE047" stroke="#EAB308" stroke-width="1"/>
+  <circle cx="50" cy="38" r="5" fill="#FDE047" stroke="#EAB308" stroke-width="1"/>
+</svg></div>
+
+<!-- ปัมปุ้ม: กลาง-ขวา (vertical center) -->
+<div class="pk-mascot pk3" style="top:45%;right:10px;width:70px">
+<svg viewBox="0 0 100 130" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="50" cy="78" rx="32" ry="29" fill="#F97316"/>
+  <ellipse cx="32" cy="77" rx="12" ry="21" fill="#EA580C"/>
+  <ellipse cx="68" cy="77" rx="12" ry="21" fill="#EA580C"/>
+  <ellipse cx="50" cy="77" rx="15" ry="23" fill="#F97316"/>
+  <rect x="47" y="48" width="7" height="11" rx="3" fill="#65A30D" transform="rotate(15,50,53)"/>
+  <circle cx="40" cy="73" r="7" fill="#1C1917"/>
+  <circle cx="60" cy="73" r="7" fill="#1C1917"/>
+  <circle cx="42" cy="71" r="3" fill="white"/>
+  <circle cx="62" cy="71" r="3" fill="white"/>
+  <ellipse cx="50" cy="88" rx="9" ry="7" fill="#1C1917"/>
+  <ellipse cx="50" cy="88" rx="6" ry="4" fill="#7C2D12"/>
+  <ellipse cx="32" cy="84" rx="6" ry="4" fill="#FB923C" opacity="0.7"/>
+  <ellipse cx="68" cy="84" rx="6" ry="4" fill="#FB923C" opacity="0.7"/>
+  <path d="M20 68 Q0 50 8 35" stroke="#F97316" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="8" cy="33" rx="7" ry="6" fill="#F97316"/>
+  <path d="M80 68 Q98 48 95 34" stroke="#F97316" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <ellipse cx="95" cy="32" rx="7" ry="6" fill="#F97316"/>
+  <path d="M40 107 Q30 118 42 128" stroke="#F97316" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <ellipse cx="43" cy="130" rx="12" ry="6" fill="#EA580C"/>
+  <path d="M60 107 Q72 115 68 128" stroke="#F97316" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <ellipse cx="68" cy="130" rx="12" ry="6" fill="#EA580C"/>
+  <text x="8" y="28" font-size="14" fill="#FDE047">★</text>
+  <text x="82" y="22" font-size="10" fill="#FDE047">✦</text>
+</svg></div>
 </body>
 </html>
