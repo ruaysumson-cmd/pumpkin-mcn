@@ -918,6 +918,16 @@ async function loadAll(silent=false){
   if(!silent) document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
+async function syncPhotosAndSettings(){
+  // wrapper สำหรับ backward compat — ใช้ _fetchAndUpdate
+  await _fetchAndUpdate();
+}
+async function manualSyncToCloud(){
+  window._lastLoadTime = 0;
+  localStorage.removeItem('pg_records_cache');
+  await _fetchAndUpdate();
+  toast('✅ Sync สำเร็จค่ะ!');
+}
 async function _fetchAndUpdate(){
   try {
     let recRes, nameRes, initRes = null;
@@ -978,7 +988,8 @@ async function _fetchAndUpdate(){
   } catch(e){
     setSyncStatus('offline');
     document.getElementById('syncBanner').classList.remove('show');
-    if(records.length > 0) renderCurrentPage(); // ใช้ cache ถ้ามี
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    if(records.length > 0) renderCurrentPage();
   }
 }
 async function syncNow(){
@@ -1445,12 +1456,26 @@ function renderSummary(){
     else if(periodTab==='yesterday'){ curKey=getYesterday(); prevKey=''; }
     else {
       const pl=getLabels(periodTab, selDate);
-      curKey=pl[pl.length-1]||selDate;
-      prevKey=pl[pl.length-2]||'';
+      // multi-day: รวมทุกวัน ไม่ใช่แค่วันสุดท้าย
+      const cur=pl.reduce((s,l)=>s+sumFor(i,periodTab,l),0);
+      // prev period
+      let prevDays=[];
+      if(periodTab==='month'){
+        const mo=(document.getElementById('summaryMonth')?.value)||today().slice(0,7);
+        const [py,pm]=mo.split('-').map(Number);
+        const prevMo=pm===1?`${py-1}-12`:`${py}-${String(pm-1).padStart(2,'0')}`;
+        const dInPrev=new Date(py,pm===1?11:pm-2+1,0).getDate();
+        for(let d=1;d<=dInPrev;d++) prevDays.push(`${prevMo}-${String(d).padStart(2,'0')}`);
+      } else if(periodTab==='7day'){
+        const base=new Date(today());
+        for(let d=7;d<14;d++){const dd=new Date(base);dd.setDate(base.getDate()-d);prevDays.push(dd.toISOString().slice(0,10));}
+      }
+      const prev=prevDays.length>0?prevDays.reduce((s,l)=>s+sumFor(i,periodTab,l),0):0;
+      curKey=''; prevKey='';
     }
-    const cur=sumFor(i,periodTab,curKey);
-    const prev = sumFor(i,periodTab,prevKey);
-    const pct=prev>0?Math.round((cur-prev)/prev*100):null;
+    const pct=typeof cur!=='undefined'&&prev>0?Math.round((cur-prev)/prev*100):null;
+    const _cur=typeof cur!=='undefined'?cur:sumFor(i,periodTab,curKey);
+    const _prev=typeof prev!=='undefined'?prev:sumFor(i,periodTab,prevKey);
     const badge=pct===null?`<span class="metric-badge badge-nu">ยังไม่มีเทียบ</span>`
       :pct>=0?`<span class="metric-badge badge-up">▲ ${pct}%</span>`
       :`<span class="metric-badge badge-dn">▼ ${Math.abs(pct)}%</span>`;
@@ -1816,7 +1841,7 @@ async function bulkDelete(){
   }
   try{ localStorage.removeItem('pg_records_cache'); }catch(e){}
   setSyncStatus('online'); setLastSync();
-  if(btn){ btn.disabled=false; btn.style.display='none'; btn.innerHTML='🗑 ลบที่เลือก (<span id="selCount">0</span>)'; }
+  if(btn){ btn.disabled=false; btn.style.display='none'; btn.innerHTML='🗑 ลบที่เลือก (<span class="selCountDisplay">0</span>)'; }
   renderHistory();
   toast(ok>0 ? `✅ ลบสำเร็จ ${ok} รายการ${fail>0?' (ล้มเหลว '+fail+')':''}` : '❌ ลบไม่สำเร็จ', ok>0?'':'error');
 }
